@@ -1,0 +1,66 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:               #0d1520;
+  --sidebar-bg:       #101d2b;
+  --sidebar-hover:    #162436;
+  --sidebar-active:   #1a2d42;
+  --header-bg:        #101d2b;
+  --surface:          #131f30;
+  --surface-2:        #192840;
+  --border:           #1c2e42;
+  --text-primary:     #dde8f0;
+  --text-secondary:   #6e93b0;
+  --text-muted:       #3f607a;
+  --accent:           #2d7dd2;
+  --accent-hover:     #3d8fe8;
+  --danger:           #e05c5c;
+
+  --sidebar-w:        200px;
+  --sidebar-w-sm:     56px;
+  --header-h:         56px;
+  --radius:           8px;
+  --transition:       0.2s ease;
+
+  font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+body {
+  overflow: hidden;
+  height: 100vh;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* react-grid-layout overrides */
+.react-grid-item.react-grid-placeholder {
+  background: var(--accent);
+  opacity: 0.12;
+  border-radius: var(--radius);
+  transition-duration: 100ms;
+}

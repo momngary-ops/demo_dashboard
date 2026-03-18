@@ -1,0 +1,182 @@
+import { useState, useCallback } from 'react'
+import GridLayout from 'react-grid-layout/legacy'
+import 'react-grid-layout/css/styles.css'
+import 'react-resizable/css/styles.css'
+import Widget from '../components/Widget'
+import WidgetPicker from '../components/WidgetPicker'
+import TopBanner from '../components/TopBanner/TopBanner'
+import './DashboardPage.css'
+
+const COLS    = 20
+const ROW_H   = 80
+const MARGIN  = [12, 12]
+const PAD     = [16, 16]
+
+const DEFAULT_LAYOUT = [
+  { i: 'w1', x: 0,  y: 0, w: 5,  h: 5, minW: 2, minH: 2 },
+  { i: 'w2', x: 5,  y: 0, w: 5,  h: 5, minW: 2, minH: 2 },
+  { i: 'w3', x: 10, y: 0, w: 5,  h: 5, minW: 2, minH: 2 },
+  { i: 'w4', x: 15, y: 0, w: 5,  h: 5, minW: 2, minH: 2 },
+  { i: 'w5', x: 0,  y: 5, w: 10, h: 5, minW: 2, minH: 2 },
+  { i: 'w6', x: 10, y: 5, w: 10, h: 5, minW: 2, minH: 2 },
+]
+
+const DEFAULT_WIDGETS = {
+  w1: { type: 'stat',  title: '온도',     dataKey: 'temperature' },
+  w2: { type: 'stat',  title: '습도',     dataKey: 'humidity' },
+  w3: { type: 'stat',  title: 'CO2',      dataKey: 'co2' },
+  w4: { type: 'stat',  title: '광량',     dataKey: 'light' },
+  w5: { type: 'chart', title: '환경 추이', dataKey: 'trend' },
+  w6: { type: 'chart', title: '농가 현황', dataKey: 'farms' },
+}
+
+// B: 그리드 오버레이 — 컬럼·행 가이드선
+function GridOverlay({ containerWidth }) {
+  const innerW  = containerWidth - PAD[0] * 2
+  const cellW   = (innerW - MARGIN[0] * (COLS - 1)) / COLS
+  const stepX   = cellW + MARGIN[0]
+  const stepY   = ROW_H + MARGIN[1]
+  const rowCount = 12
+
+  const vLines = Array.from({ length: COLS + 1 }, (_, i) => {
+    const x = PAD[0] + i * stepX
+    return <line key={`v${i}`} x1={x} y1="0" x2={x} y2="100%" />
+  })
+
+  const hLines = Array.from({ length: rowCount + 1 }, (_, i) => {
+    const y = PAD[1] + i * stepY
+    return <line key={`h${i}`} x1="0" y1={y} x2="100%" y2={y} />
+  })
+
+  return (
+    <div className="grid-overlay" aria-hidden="true">
+      <svg width="100%" height="100%">
+        <defs>
+          <style>{`
+            .grid-overlay line {
+              stroke: rgba(45,125,210,0.18);
+              stroke-width: 1;
+              stroke-dasharray: 4 4;
+            }
+          `}</style>
+        </defs>
+        {vLines}
+        {hLines}
+      </svg>
+      {/* 컬럼 번호 */}
+      {Array.from({ length: COLS }, (_, i) => (
+        <span
+          key={i}
+          className="grid-overlay__col-num"
+          style={{ left: PAD[0] + i * stepX + cellW / 2 }}
+        >
+          {i + 1}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+export default function DashboardPage() {
+  const [layout, setLayout]           = useState(DEFAULT_LAYOUT)
+  const [widgets, setWidgets]         = useState(DEFAULT_WIDGETS)
+  const [editMode, setEditMode]       = useState(false)
+  const [pickerOpen, setPickerOpen]   = useState(false)
+  const [isResizing, setIsResizing]   = useState(false)
+  const [containerWidth, setContainerWidth] = useState(
+    window.innerWidth - 200
+  )
+
+  // 사이드바 토글 대응 — ResizeObserver로 실시간 감지
+  const containerRef = useCallback(node => {
+    if (!node) return
+    const ro = new ResizeObserver(([entry]) => {
+      setContainerWidth(entry.contentRect.width)
+    })
+    ro.observe(node)
+  }, [])
+
+  const handleLayoutChange = (newLayout) => setLayout(newLayout)
+
+  const handleRemoveWidget = (id) => {
+    setLayout(prev => prev.filter(l => l.i !== id))
+    setWidgets(prev => { const n = { ...prev }; delete n[id]; return n })
+  }
+
+  const handleAddWidget = (widgetDef) => {
+    const id   = `w${Date.now()}`
+    const maxY = layout.reduce((m, l) => Math.max(m, l.y + l.h), 0)
+    setLayout(prev => [...prev, { i: id, x: 0, y: maxY, w: 5, h: 5, minW: 2, minH: 2 }])
+    setWidgets(prev => ({ ...prev, [id]: widgetDef }))
+    setPickerOpen(false)
+  }
+
+  // C: 위젯별 현재 grid 크기 맵
+  const sizeMap = Object.fromEntries(layout.map(l => [l.i, { w: l.w, h: l.h }]))
+
+  return (
+    <div className="dashboard" ref={containerRef}>
+      {/* 툴바 */}
+      <div className="dashboard__toolbar">
+        <span className="dashboard__title">Dashboard</span>
+        <div className="dashboard__actions">
+          <button
+            className={`toolbar-btn ${editMode ? 'toolbar-btn--active' : ''}`}
+            onClick={() => setEditMode(v => !v)}
+          >
+            {editMode ? '편집 완료' : '레이아웃 편집'}
+          </button>
+          {editMode && (
+            <button className="toolbar-btn toolbar-btn--primary" onClick={() => setPickerOpen(true)}>
+              + 위젯 추가
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 헤드 위젯 */}
+      <TopBanner />
+
+      {/* 그리드 영역 */}
+      <div className={`dashboard__grid-wrap ${editMode ? 'dashboard__grid-wrap--edit' : ''}`}>
+
+        {/* B: 편집모드 그리드 오버레이 */}
+        {editMode && <GridOverlay containerWidth={containerWidth} />}
+
+        <GridLayout
+          layout={layout}
+          cols={COLS}
+          rowHeight={ROW_H}
+          width={containerWidth}
+          isDraggable={editMode}
+          isResizable={editMode}
+          onLayoutChange={handleLayoutChange}
+          margin={MARGIN}
+          containerPadding={PAD}
+          draggableHandle=".widget__drag-handle"
+          // A: 핸들 6방향
+          resizeHandles={['se', 'sw', 'ne', 'nw', 's', 'e']}
+          onResizeStart={() => setIsResizing(true)}
+          onResizeStop={() => setIsResizing(false)}
+        >
+          {layout.map(({ i }) => (
+            <div key={i}>
+              <Widget
+                id={i}
+                config={widgets[i]}
+                editMode={editMode}
+                onRemove={() => handleRemoveWidget(i)}
+                gridSize={sizeMap[i]}          // C: 크기 배지용
+                isResizing={isResizing}
+              />
+            </div>
+          ))}
+        </GridLayout>
+      </div>
+
+      {pickerOpen && (
+        <WidgetPicker onAdd={handleAddWidget} onClose={() => setPickerOpen(false)} />
+      )}
+    </div>
+  )
+}

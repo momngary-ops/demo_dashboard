@@ -1,0 +1,148 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 툴바 */
+.dashboard__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.dashboard__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dashboard__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  transition: background var(--transition), color var(--transition);
+}
+.toolbar-btn:hover {
+  background: var(--sidebar-hover);
+  color: var(--text-primary);
+}
+.toolbar-btn--active {
+  background: var(--sidebar-active);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+.toolbar-btn--primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.toolbar-btn--primary:hover {
+  background: var(--accent-hover);
+  color: #fff;
+}
+
+/* 그리드 래퍼 */
+.dashboard__grid-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;   /* 오버레이 기준점 */
+}
+
+.react-grid-layout {
+  min-height: 100%;
+}
+
+/* ================================================
+   B: 그리드 오버레이
+   ================================================ */
+.grid-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.grid-overlay svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.grid-overlay__col-num {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: rgba(45, 125, 210, 0.45);
+  font-weight: 600;
+  letter-spacing: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* 편집모드 그리드 래퍼 — 위젯이 오버레이 위로 올라오도록 */
+.dashboard__grid-wrap--edit .react-grid-layout {
+  position: relative;
+  z-index: 1;
+}
+
+/* ================================================
+   A: 리사이즈 핸들 — 6방향, 크고 선명하게
+   ================================================ */
+
+/* 기본 핸들 숨김 → 위젯 hover·편집모드에서만 표시 */
+.react-resizable-handle {
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 10;
+  /* SVG 배경을 accent 색상으로 교체 */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Cpath d='M 8 8 L 0 8 L 0 5.5 L 5.5 5.5 L 5.5 0 L 8 0 Z' fill='%232d7dd2'/%3E%3C/svg%3E") !important;
+}
+.react-grid-item:hover .react-resizable-handle,
+.react-grid-item.resizing .react-resizable-handle {
+  opacity: 1;
+}
+
+/* 코너 핸들 크기 확대 */
+.react-resizable-handle-se,
+.react-resizable-handle-sw,
+.react-resizable-handle-ne,
+.react-resizable-handle-nw {
+  width: 16px !important;
+  height: 16px !important;
+  background-size: 10px 10px !important;
+}
+
+/* 엣지 핸들 — transform은 건드리지 않음 (react-resizable이 rotate로 방향 지정) */
+.react-resizable-handle-s,
+.react-resizable-handle-n,
+.react-resizable-handle-e,
+.react-resizable-handle-w {
+  background-size: 10px 10px !important;
+}
+
+/* 리사이즈 중 위젯 강조 */
+.react-grid-item.resizing {
+  z-index: 100;
+  opacity: 0.9;
+}
+.react-grid-item.resizing .widget {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(45, 125, 210, 0.3);
+}
