@@ -62,7 +62,7 @@ const ACCOUNT_ITEMS = [
 ]
 
 // ─── 컴포넌트 ────────────────────────────────────────────────────────
-export default function Sidebar({ activePage, onNavigate, onResetDashboard }) {
+export default function Sidebar({ activePage, onNavigate }) {
   const [collapsed,       setCollapsed]       = useState(false)
   const [clickOpenGroup,  setClickOpenGroup]  = useState(null)   // 펼친 상태: 클릭 고정 열림
   const [hoverGroup,      setHoverGroup]      = useState(null)   // 펼친 상태: hover 임시 열림
@@ -275,8 +275,8 @@ export default function Sidebar({ activePage, onNavigate, onResetDashboard }) {
               <button
                 className="sidebar__modal-btn sidebar__modal-confirm"
                 onClick={() => {
+                  // TODO: 실제 초기화 로직 연결
                   setShowResetModal(false)
-                  onResetDashboard?.()
                 }}
               >
                 초기화

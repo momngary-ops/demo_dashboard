@@ -1,3 +1,19 @@
+/**
+ * [Dashboard] 페이지 — 로그인 후 랜딩 & 농장 공통 대시보드
+ *
+ * ■ 확정 정책
+ *   1. 사이드바 [Dashboard] 클릭 또는 로그인 직후 이 페이지로 랜딩한다. (고정)
+ *   2. 이 페이지는 해당 농장(권한그룹)의 모든 구성원에게 공통으로 표시된다.
+ *   3. 레이아웃·위젯 편집·저장은 관리자(role === 'admin' | groupOwner)만 가능하다.
+ *      비관리자에게는 편집 툴바(레이아웃 편집 버튼·위젯 추가 버튼)를 노출하지 않는다.
+ *   4. 관리자가 저장한 Dashboard 설정이 동일 권한그룹 전체 구성원에게 공통 적용된다.
+ *
+ * ■ 미구현 (API 연동 시 처리)
+ *   - 로그인 사용자의 farmId / groupId / role 조회 (현재: isAdmin 로컬 mock)
+ *   - 그룹별 Dashboard 레이아웃·위젯 설정 서버 저장 및 불러오기
+ *     (현재: DEFAULT_LAYOUT / DEFAULT_WIDGETS 클라이언트 고정값)
+ *   - 구성원별 개인 커스터마이징 필요 시 별도 [개인 대시보드] 페이지로 분리
+ */
 import { useState, useCallback } from 'react'
 import GridLayout from 'react-grid-layout/legacy'
 import 'react-grid-layout/css/styles.css'
@@ -11,6 +27,23 @@ const COLS    = 20
 const ROW_H   = 80
 const MARGIN  = [12, 12]
 const PAD     = [16, 16]
+
+// ─── localStorage 키 — App.jsx(초기화)에서도 동일 키를 사용한다 ───────
+export const STORAGE_KEY_LAYOUT  = 'dashboard:layout'
+export const STORAGE_KEY_WIDGETS = 'dashboard:widgets'
+
+function loadFromStorage(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+function saveToStorage(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* quota 초과 등 무시 */ }
+}
 
 const DEFAULT_LAYOUT = [
   { i: 'w1', x: 0,  y: 0, w: 5,  h: 5, minW: 2, minH: 2 },
@@ -78,8 +111,12 @@ function GridOverlay({ containerWidth }) {
 }
 
 export default function DashboardPage() {
-  const [layout, setLayout]           = useState(DEFAULT_LAYOUT)
-  const [widgets, setWidgets]         = useState(DEFAULT_WIDGETS)
+  // TODO: 실제 연동 시 auth context에서 주입 — role === 'admin' || groupOwner
+  const isAdmin = true
+
+  // lazy initializer — 마운트 시 localStorage에서 불러오고, 없으면 기본값 사용
+  const [layout, setLayout]   = useState(() => loadFromStorage(STORAGE_KEY_LAYOUT,  DEFAULT_LAYOUT))
+  const [widgets, setWidgets] = useState(() => loadFromStorage(STORAGE_KEY_WIDGETS, DEFAULT_WIDGETS))
   const [editMode, setEditMode]       = useState(false)
   const [pickerOpen, setPickerOpen]   = useState(false)
   const [isResizing, setIsResizing]   = useState(false)
@@ -116,22 +153,31 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard" ref={containerRef}>
-      {/* 툴바 */}
+      {/* 툴바 — 편집 기능은 관리자(isAdmin)만 노출 */}
       <div className="dashboard__toolbar">
         <span className="dashboard__title">Dashboard</span>
-        <div className="dashboard__actions">
-          <button
-            className={`toolbar-btn ${editMode ? 'toolbar-btn--active' : ''}`}
-            onClick={() => setEditMode(v => !v)}
-          >
-            {editMode ? '편집 완료' : '레이아웃 편집'}
-          </button>
-          {editMode && (
-            <button className="toolbar-btn toolbar-btn--primary" onClick={() => setPickerOpen(true)}>
-              + 위젯 추가
+        {isAdmin && (
+          <div className="dashboard__actions">
+            <button
+              className={`toolbar-btn ${editMode ? 'toolbar-btn--active' : ''}`}
+              onClick={() => {
+                if (editMode) {
+                  // 편집 완료 — 현재 레이아웃·위젯 상태를 localStorage에 저장
+                  saveToStorage(STORAGE_KEY_LAYOUT,  layout)
+                  saveToStorage(STORAGE_KEY_WIDGETS, widgets)
+                }
+                setEditMode(v => !v)
+              }}
+            >
+              {editMode ? '편집 완료' : '레이아웃 편집'}
             </button>
-          )}
-        </div>
+            {editMode && (
+              <button className="toolbar-btn toolbar-btn--primary" onClick={() => setPickerOpen(true)}>
+                + 위젯 추가
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 헤드 위젯 */}

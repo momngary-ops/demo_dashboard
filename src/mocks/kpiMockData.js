@@ -18,7 +18,7 @@ export const MOCK_API_DATA = {
     data: [405, 410, 415, 412, 408, 411, 413, 415, 412, 409, 408, 411, 414, 412, 410, 411, 412, 413, 412, 412],
     lastReceivedAt: NOW,
   },
-  allocated_volume: {
+  allocated_volume_kg: {
     value: 1250,
     data: [980, 1050, 1100, 1150, 1080, 1090, 1110, 1150, 1180, 1200, 1210, 1220, 1230, 1235, 1240, 1242, 1245, 1248, 1249, 1250],
     lastReceivedAt: NOW,
@@ -48,12 +48,13 @@ export const MOCK_API_DATA = {
     data: [280, 290, 300, 310, 320, 328, 333, 338, 340, 340],
     lastReceivedAt: NOW,
   },
+  // TODO: API 연동 시 LABOR 510_status 집계로 교체 (완료건수 / 전체건수 * 100)
   task_rate: {
     value: 78,
     data: [50, 55, 60, 65, 70, 72, 75, 76, 77, 78],
     lastReceivedAt: NOW,
   },
-  projected_yield: {
+  projected_yield_ton: {
     value: 420,
     data: [380, 390, 400, 408, 413, 416, 418, 419, 420, 420],
     lastReceivedAt: NOW,
@@ -66,6 +67,27 @@ export const MOCK_API_DATA = {
   cost_electricity: {
     value: 48000,
     data: [40000, 42000, 44000, 45000, 46000, 47000, 47500, 48000, 48000, 48000],
+    lastReceivedAt: NOW,
+  },
+  // 생육·관찰 (일 단위, 최근 20일분)
+  chojang: {
+    value: 29.3,
+    data: [22.0, 22.4, 22.7, 23.1, 23.5, 23.9, 24.4, 24.8, 25.3, 25.7, 26.1, 26.5, 27.0, 27.4, 27.8, 28.2, 28.6, 28.9, 29.1, 29.3],
+    lastReceivedAt: NOW,
+  },
+  julggi: {
+    value: 12.1,
+    data: [11.5, 11.5, 11.6, 11.6, 11.7, 11.7, 11.7, 11.8, 11.8, 11.8, 11.9, 11.9, 11.9, 12.0, 12.0, 12.0, 12.0, 12.1, 12.1, 12.1],
+    lastReceivedAt: NOW,
+  },
+  num_fruit: {
+    value: 24,
+    data: [18, 18, 19, 19, 20, 20, 20, 21, 21, 21, 22, 22, 22, 23, 23, 23, 23, 24, 24, 24],
+    lastReceivedAt: NOW,
+  },
+  harvest_grp: {
+    value: 5,
+    data: [1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5],
     lastReceivedAt: NOW,
   },
 }

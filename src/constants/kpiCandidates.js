@@ -10,14 +10,19 @@ export const KPI_CANDIDATES = [
   // 생산·작업 (5)
   { id: 'xsunadd',           title: '누적일사량',   unit: 'MJ/m²', icon: '🌞', bgColor: '#f59e0b', yMin: 0,    yMax: null, category: '생산·작업' },
   { id: 'daily_shipment_kg', title: '수확량',      unit: 'kg',    icon: '🌿', bgColor: '#10b981', yMin: 0,    yMax: null, category: '생산·작업' },
-  { id: 'allocated_volume',  title: '출하량',      unit: 'kg',    icon: '📦', bgColor: '#3b82f6', yMin: 0,    yMax: null, category: '생산·작업' },
+  { id: 'allocated_volume_kg',  title: '출하량',   unit: 'kg',    icon: '📦', bgColor: '#3b82f6', yMin: 0,    yMax: null, category: '생산·작업' },
   { id: 'task_rate',         title: '작업 완수율',  unit: '%',     icon: '✅', bgColor: '#10b981', yMin: 0,    yMax: 100,  category: '생산·작업' },
-  { id: 'projected_yield',   title: '수확량 예측',  unit: 'kg',    icon: '📈', bgColor: '#3b82f6', yMin: 0,    yMax: null, category: '생산·작업' },
+  { id: 'projected_yield_ton',  title: '수확량 예측', unit: 'kg',   icon: '📈', bgColor: '#3b82f6', yMin: 0,    yMax: null, category: '생산·작업' },
   // 재무·시장 (4)
   { id: 'market_price_kg',   title: '도매시장가격', unit: '원/kg', icon: '📊', bgColor: '#3b82f6', yMin: null, yMax: null, category: '재무·시장' },
   { id: null,                title: '원가(단가)',   unit: '원',    icon: '💰', bgColor: '#ef4444', yMin: null, yMax: null, category: '재무·시장' },
   { id: 'cost_electricity',  title: '에너지비용',   unit: '원',    icon: '⚡', bgColor: '#ef4444', yMin: 0,    yMax: null, category: '재무·시장' },
   { id: null,                title: '인건비',      unit: '원',    icon: '👷', bgColor: '#ef4444', yMin: 0,    yMax: null, category: '재무·시장' },
+  // 생육·관찰 (4)
+  { id: 'chojang',     title: '초장',    unit: 'cm', icon: '📏', bgColor: '#10b981', yMin: 0,  yMax: 35,   category: '생육·관찰' },
+  { id: 'julggi',      title: '줄기굵기', unit: 'mm', icon: '🌿', bgColor: '#10b981', yMin: 10, yMax: 15,   category: '생육·관찰' },
+  { id: 'num_fruit',   title: '착과수',   unit: '개', icon: '🍅', bgColor: '#f59e0b', yMin: 0,  yMax: 50,   category: '생육·관찰' },
+  { id: 'harvest_grp', title: '수확군',   unit: '단', icon: '🌾', bgColor: '#f59e0b', yMin: 0,  yMax: null, category: '생육·관찰' },
 ]
 
 /** 기본 활성 슬롯 5개 */
