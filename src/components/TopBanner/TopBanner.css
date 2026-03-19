@@ -117,6 +117,103 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
+/* 하단 접기/펼치기 바 */
+.topbanner__collapse-bar {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.22);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+.topbanner__collapse-bar:hover {
+  background: rgba(0, 0, 0, 0.38);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ================================================
+   요약 바 (compact 모드)
+   ================================================ */
+.topbanner__compact-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 16px;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
+}
+.topbanner__compact-bar--visible {
+  max-height: 48px;
+  opacity: 1;
+  padding: 6px 16px;
+}
+
+.topbanner__compact-zone {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  margin-right: 6px;
+}
+
+.topbanner__compact-items {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  gap: 0;
+}
+
+.topbanner__compact-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.topbanner__compact-sep {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0 4px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.topbanner__compact-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.topbanner__compact-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ================================================
+   전체 콘텐츠 영역 — compact 시 접힘
+   ================================================ */
+.topbanner__full {
+  overflow: hidden;
+  max-height: 200px;
+  opacity: 1;
+  transition: max-height 0.3s ease, opacity 0.25s ease;
+}
+.topbanner__full--hidden {
+  max-height: 0;
+  opacity: 0;
+}
+
 .zone-tabs {
   display: flex;
   gap: 2px;

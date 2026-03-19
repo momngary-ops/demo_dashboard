@@ -1,15 +1,13 @@
-const ZONES = ['1구역', '2구역', '3구역', '4구역']
-
-export default function ZoneTabs({ activeZone, onZoneChange }) {
+export default function ZoneTabs({ zones, activeZone, onZoneChange }) {
   return (
     <div className="zone-tabs">
-      {ZONES.map((zone, i) => (
+      {zones.map((zone, i) => (
         <button
-          key={zone}
+          key={zone.id}
           className={`zone-tabs__tab ${activeZone === i ? 'zone-tabs__tab--active' : ''}`}
           onClick={() => onZoneChange(i)}
         >
-          {zone}
+          {zone.label}
         </button>
       ))}
     </div>

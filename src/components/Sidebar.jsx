@@ -4,6 +4,7 @@ import {
   Users, User, LogOut, ChevronLeft, ChevronRight,
   ChevronDown, RotateCcw,
 } from 'lucide-react'
+import AdminPasswordModal from './AdminPasswordModal'
 import './Sidebar.css'
 
 // ─── 메뉴 데이터 ────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ const NAV_GROUPS = [
     icon: Settings,
     type: 'accordion',
     children: [
+      { id: 'farm-settings',   label: '농장 등록/설정' },
       { id: 'data-item-edit',  label: '데이터 항목 수정 및 변경' },
       { id: 'dashboard-reset', label: '대시보드 초기화', special: 'reset' },
     ],
@@ -62,8 +64,7 @@ const ACCOUNT_ITEMS = [
 ]
 
 // ─── 컴포넌트 ────────────────────────────────────────────────────────
-export default function Sidebar({ activePage, onNavigate, onResetDashboard }) {
-  const [collapsed,       setCollapsed]       = useState(false)
+export default function Sidebar({ activePage, onNavigate, onResetDashboard, collapsed, onCollapse }) {
   const [clickOpenGroup,  setClickOpenGroup]  = useState(null)   // 펼친 상태: 클릭 고정 열림
   const [hoverGroup,      setHoverGroup]      = useState(null)   // 펼친 상태: hover 임시 열림
   const [flyout,          setFlyout]          = useState({ groupId: null, y: 0 }) // 접힌 상태 플라이아웃
@@ -103,7 +104,7 @@ export default function Sidebar({ activePage, onNavigate, onResetDashboard }) {
         )}
         <button
           className="sidebar__toggle"
-          onClick={() => setCollapsed(v => !v)}
+          onClick={() => onCollapse(v => !v)}
           title={collapsed ? '메뉴 펼치기' : '메뉴 접기'}
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
@@ -250,40 +251,20 @@ export default function Sidebar({ activePage, onNavigate, onResetDashboard }) {
         </>
       )}
 
-      {/* 대시보드 초기화 확인 모달 */}
+      {/* 대시보드 초기화 비밀번호 확인 */}
       {showResetModal && (
-        <div
-          className="sidebar__modal-backdrop"
-          onClick={() => setShowResetModal(false)}
-        >
-          <div className="sidebar__modal" onClick={e => e.stopPropagation()}>
-            <div className="sidebar__modal-icon-wrap">
-              <RotateCcw size={20} />
-            </div>
-            <p className="sidebar__modal-title">대시보드 초기화</p>
-            <p className="sidebar__modal-desc">
+        <AdminPasswordModal
+          title="대시보드 초기화"
+          description={
+            <>
               대시보드를 초기화 하시겠습니까?<br />
               설정된 위젯 레이아웃이 모두 초기화됩니다.
-            </p>
-            <div className="sidebar__modal-actions">
-              <button
-                className="sidebar__modal-btn sidebar__modal-cancel"
-                onClick={() => setShowResetModal(false)}
-              >
-                취소
-              </button>
-              <button
-                className="sidebar__modal-btn sidebar__modal-confirm"
-                onClick={() => {
-                  setShowResetModal(false)
-                  onResetDashboard?.()
-                }}
-              >
-                초기화
-              </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+          confirmLabel="초기화"
+          onConfirm={() => { setShowResetModal(false); onResetDashboard?.() }}
+          onCancel={() => setShowResetModal(false)}
+        />
       )}
 
     </aside>

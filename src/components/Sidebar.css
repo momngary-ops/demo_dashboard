@@ -229,7 +229,7 @@
 
 /* ─── 서브메뉴 아이템 ────────────────────── */
 .sidebar__subitem {
-  padding-left: 20px;
+  padding-left: 10px;
   gap: 8px;
 }
 

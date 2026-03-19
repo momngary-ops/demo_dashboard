@@ -15,6 +15,7 @@
  *   - 구성원별 개인 커스터마이징 필요 시 별도 [개인 대시보드] 페이지로 분리
  */
 import { useState, useCallback } from 'react'
+import AdminPasswordModal from '../components/AdminPasswordModal'
 import GridLayout from 'react-grid-layout/legacy'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
@@ -119,7 +120,9 @@ export default function DashboardPage() {
   const [widgets, setWidgets] = useState(() => loadFromStorage(STORAGE_KEY_WIDGETS, DEFAULT_WIDGETS))
   const [editMode, setEditMode]       = useState(false)
   const [pickerOpen, setPickerOpen]   = useState(false)
+  const [pendingRemoveId, setPendingRemoveId] = useState(null)
   const [isResizing, setIsResizing]   = useState(false)
+  const [bannerCompact, setBannerCompact] = useState(false)
   const [containerWidth, setContainerWidth] = useState(
     window.innerWidth - 200
   )
@@ -135,9 +138,10 @@ export default function DashboardPage() {
 
   const handleLayoutChange = (newLayout) => setLayout(newLayout)
 
-  const handleRemoveWidget = (id) => {
-    setLayout(prev => prev.filter(l => l.i !== id))
-    setWidgets(prev => { const n = { ...prev }; delete n[id]; return n })
+  const handleRemoveWidgetConfirm = () => {
+    setLayout(prev => prev.filter(l => l.i !== pendingRemoveId))
+    setWidgets(prev => { const n = { ...prev }; delete n[pendingRemoveId]; return n })
+    setPendingRemoveId(null)
   }
 
   const handleAddWidget = (widgetDef) => {
@@ -153,6 +157,15 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard" ref={containerRef}>
+      {pendingRemoveId && (
+        <AdminPasswordModal
+          title="위젯 제거"
+          description={`대시보드에서 '${widgets[pendingRemoveId]?.title ?? '위젯'}'을(를) 제거합니다.`}
+          confirmLabel="제거 확인"
+          onConfirm={handleRemoveWidgetConfirm}
+          onCancel={() => setPendingRemoveId(null)}
+        />
+      )}
       {/* 툴바 — 편집 기능은 관리자(isAdmin)만 노출 */}
       <div className="dashboard__toolbar">
         <span className="dashboard__title">Dashboard</span>
@@ -181,10 +194,16 @@ export default function DashboardPage() {
       </div>
 
       {/* 헤드 위젯 */}
-      <TopBanner />
+      <TopBanner
+        compact={bannerCompact}
+        onToggleCompact={() => setBannerCompact(v => !v)}
+      />
 
       {/* 그리드 영역 */}
-      <div className={`dashboard__grid-wrap ${editMode ? 'dashboard__grid-wrap--edit' : ''}`}>
+      <div
+        className={`dashboard__grid-wrap ${editMode ? 'dashboard__grid-wrap--edit' : ''}`}
+        onScroll={e => setBannerCompact(e.currentTarget.scrollTop > 40)}
+      >
 
         {/* B: 편집모드 그리드 오버레이 */}
         {editMode && <GridOverlay containerWidth={containerWidth} />}
@@ -211,7 +230,7 @@ export default function DashboardPage() {
                 id={i}
                 config={widgets[i]}
                 editMode={editMode}
-                onRemove={() => handleRemoveWidget(i)}
+                onRemove={() => setPendingRemoveId(i)}
                 gridSize={sizeMap[i]}          // C: 크기 배지용
                 isResizing={isResizing}
               />

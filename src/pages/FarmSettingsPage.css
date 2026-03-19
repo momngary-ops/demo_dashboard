@@ -1,0 +1,290 @@
+.fsp {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ─── 툴바 ─────────────────────────────────────────────────────────────────── */
+.fsp__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.fsp__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fsp__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fsp__saved-badge {
+  font-size: 12px;
+  color: #4caf82;
+  font-weight: 500;
+}
+
+/* ─── 바디 ─────────────────────────────────────────────────────────────────── */
+.fsp__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─── 섹션 ─────────────────────────────────────────────────────────────────── */
+.fsp__section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+
+.fsp__section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fsp__section-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+/* ─── 기본 정보 필드 ──────────────────────────────────────────────────────── */
+.fsp__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.fsp__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fsp__label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.fsp__input {
+  padding: 7px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 200px;
+  transition: border-color var(--transition);
+}
+
+.fsp__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.fsp__input--short {
+  min-width: 100px;
+}
+
+/* ─── 구역 설정 ───────────────────────────────────────────────────────────── */
+.fsp__zones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.fsp__zone-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fsp__zone-index {
+  font-size: 12px;
+  color: var(--text-muted);
+  width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.fsp__input--zone {
+  min-width: 160px;
+  flex: 0 0 auto;
+}
+
+/* ─── 버튼 ─────────────────────────────────────────────────────────────────── */
+.fsp-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.fsp-btn:hover:not(:disabled) {
+  background: var(--sidebar-hover);
+  color: var(--text-primary);
+}
+
+.fsp-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fsp-btn--primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.fsp-btn--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.fsp-btn--danger {
+  color: var(--danger);
+  border-color: transparent;
+  background: transparent;
+}
+
+.fsp-btn--danger:hover:not(:disabled) {
+  background: rgba(224, 92, 92, 0.12);
+  color: var(--danger);
+}
+
+.fsp-btn--add {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.fsp-btn--add:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.fsp-btn--danger-solid {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.fsp-btn--danger-solid:hover:not(:disabled) {
+  background: #c94f4f;
+}
+
+/* ─── 보안 섹션 ───────────────────────────────────────────────────────────── */
+.fsp__section-todo {
+  font-size: 11px;
+  font-weight: 400;
+  color: #c8933a;
+  background: rgba(200, 147, 58, 0.1);
+  border: 1px solid rgba(200, 147, 58, 0.3);
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+
+.fsp__field-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ─── 구역 삭제 모달 ──────────────────────────────────────────────────────── */
+.fsp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.fsp-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.fsp-modal__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fsp-modal__desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.fsp-modal__desc strong {
+  color: var(--danger);
+}
+
+.fsp-modal__pw-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fsp-modal__pw-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.fsp-modal__pw-input {
+  min-width: unset;
+  width: 100%;
+}
+
+.fsp-modal__pw-input--error {
+  border-color: var(--danger) !important;
+}
+
+.fsp-modal__pw-error {
+  font-size: 11px;
+  color: var(--danger);
+}
+
+.fsp-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}

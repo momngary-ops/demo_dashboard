@@ -1,9 +1,9 @@
 import { Bell, Mail, User } from 'lucide-react'
 import './Header.css'
 
-export default function Header({ userName = '신연준 차장' }) {
+export default function Header({ userName = '신연준 차장', collapsed = false }) {
   return (
-    <header className="header">
+    <header className={`header ${collapsed ? 'header--hidden' : ''}`}>
       <div className="header__left" />
       <div className="header__right">
         <button className="header__icon-btn" title="메일">

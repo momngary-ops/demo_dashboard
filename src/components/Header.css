@@ -7,6 +7,13 @@
   justify-content: space-between;
   padding: 0 20px;
   flex-shrink: 0;
+  overflow: hidden;
+  transition: height 0.2s ease;
+}
+
+.header--hidden {
+  height: 0;
+  border-bottom: none;
 }
 
 .header__left {
