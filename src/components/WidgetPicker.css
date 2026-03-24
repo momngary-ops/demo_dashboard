@@ -90,3 +90,32 @@
   color: var(--text-primary);
   border-color: var(--accent);
 }
+
+.picker__item--noapi {
+  opacity: 0.5;
+  cursor: default;
+}
+.picker__item--noapi:hover {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.picker__item-badge {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  background: rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.picker__cat-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 8px 0 4px;
+}

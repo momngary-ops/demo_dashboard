@@ -113,6 +113,7 @@ export default function TopBanner({ compact = false, onToggleCompact }) {
       {pickerOpen && (
         <KpiSelectorModal
           slots={slotConfigs}
+          kpiSlots={kpiSlots}
           onSlotsChange={setSlotConfigs}
           onClose={() => setPickerOpen(false)}
         />

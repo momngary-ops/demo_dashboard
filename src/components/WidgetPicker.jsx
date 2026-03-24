@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import './WidgetPicker.css'
 
 const WIDGET_TYPES = [
@@ -6,20 +7,8 @@ const WIDGET_TYPES = [
   { type: 'chart', label: '차트',        desc: '시계열 데이터 시각화' },
 ]
 
-const DATA_KEYS = [
-  { key: 'temperature', label: '온도' },
-  { key: 'humidity',    label: '습도' },
-  { key: 'co2',         label: 'CO2' },
-  { key: 'light',       label: '광량' },
-  { key: 'trend',       label: '환경 추이' },
-  { key: 'farms',       label: '농가 현황' },
-]
-
 export default function WidgetPicker({ onAdd, onClose }) {
-  const handleAdd = (type, dataKey) => {
-    const label = DATA_KEYS.find(d => d.key === dataKey)?.label || dataKey
-    onAdd({ type, title: label, dataKey })
-  }
+  const categories = [...new Set(KPI_CANDIDATES.map(c => c.category))]
 
   return (
     <div className="picker-overlay" onClick={onClose}>
@@ -33,21 +22,32 @@ export default function WidgetPicker({ onAdd, onClose }) {
             <div key={wt.type} className="picker__section">
               <div className="picker__section-title">{wt.label}</div>
               <p className="picker__section-desc">{wt.desc}</p>
-              <div className="picker__grid">
-                {DATA_KEYS.filter(d =>
-                  wt.type === 'stat'
-                    ? ['temperature','humidity','co2','light'].includes(d.key)
-                    : ['trend','farms'].includes(d.key)
-                ).map(d => (
-                  <button
-                    key={d.key}
-                    className="picker__item"
-                    onClick={() => handleAdd(wt.type, d.key)}
-                  >
-                    {d.label}
+              {wt.type === 'stat' ? (
+                categories.map(cat => (
+                  <div key={cat}>
+                    <div className="picker__cat-label">{cat}</div>
+                    <div className="picker__grid">
+                      {KPI_CANDIDATES.filter(c => c.category === cat).map(c => (
+                        <button
+                          key={c.id}
+                          className={`picker__item ${!c.mock ? 'picker__item--noapi' : ''}`}
+                          onClick={() => c.mock && onAdd({ type: wt.type, title: c.title, kpiId: c.id, unit: c.unit })}
+                          title={!c.mock ? 'API 준비 중' : undefined}
+                        >
+                          {c.icon} {c.title}
+                          {!c.mock && <span className="picker__item-badge">준비 중</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="picker__grid">
+                  <button className="picker__item picker__item--noapi" disabled>
+                    차트 (준비 중)
                   </button>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

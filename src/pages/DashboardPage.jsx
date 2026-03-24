@@ -14,8 +14,10 @@
  *     (현재: DEFAULT_LAYOUT / DEFAULT_WIDGETS 클라이언트 고정값)
  *   - 구성원별 개인 커스터마이징 필요 시 별도 [개인 대시보드] 페이지로 분리
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import AdminPasswordModal from '../components/AdminPasswordModal'
+import { useKpiPolling } from '../hooks/useKpiPolling'
+import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import GridLayout from 'react-grid-layout/legacy'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
@@ -56,12 +58,12 @@ const DEFAULT_LAYOUT = [
 ]
 
 const DEFAULT_WIDGETS = {
-  w1: { type: 'stat',  title: '온도',     dataKey: 'temperature' },
-  w2: { type: 'stat',  title: '습도',     dataKey: 'humidity' },
-  w3: { type: 'stat',  title: 'CO2',      dataKey: 'co2' },
-  w4: { type: 'stat',  title: '광량',     dataKey: 'light' },
-  w5: { type: 'chart', title: '환경 추이', dataKey: 'trend' },
-  w6: { type: 'chart', title: '농가 현황', dataKey: 'farms' },
+  w1: { type: 'stat',  title: '내부 온도',  kpiId: 'xintemp1' },
+  w2: { type: 'stat',  title: '내부 습도',  kpiId: 'xinhum1' },
+  w3: { type: 'stat',  title: 'CO₂',       kpiId: 'xco2' },
+  w4: { type: 'stat',  title: '급액 EC',    kpiId: 'now_ec' },
+  w5: { type: 'chart', title: '환경 추이',  kpiId: null },
+  w6: { type: 'chart', title: '농가 현황',  kpiId: null },
 }
 
 // B: 그리드 오버레이 — 컬럼·행 가이드선
@@ -152,6 +154,16 @@ export default function DashboardPage() {
     setPickerOpen(false)
   }
 
+  // 위젯 KPI 폴링 — kpiId 있는 위젯만 수집 후 일괄 폴링
+  const widgetSlotConfigs = useMemo(() =>
+    Object.values(widgets)
+      .filter(w => w.kpiId)
+      .map(w => KPI_CANDIDATES.find(c => c.id === w.kpiId) ?? { id: w.kpiId, title: w.title }),
+    [widgets]
+  )
+  const widgetKpiSlots = useKpiPolling(widgetSlotConfigs)
+  const kpiSlotMap = Object.fromEntries(widgetKpiSlots.map(s => [s.id, s]))
+
   // C: 위젯별 현재 grid 크기 맵
   const sizeMap = Object.fromEntries(layout.map(l => [l.i, { w: l.w, h: l.h }]))
 
@@ -229,6 +241,7 @@ export default function DashboardPage() {
               <Widget
                 id={i}
                 config={widgets[i]}
+                kpiSlot={kpiSlotMap[widgets[i]?.kpiId] ?? null}
                 editMode={editMode}
                 onRemove={() => setPendingRemoveId(i)}
                 gridSize={sizeMap[i]}          // C: 크기 배지용

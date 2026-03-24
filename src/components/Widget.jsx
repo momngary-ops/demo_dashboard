@@ -1,23 +1,57 @@
 import { GripHorizontal, X } from 'lucide-react'
 import './Widget.css'
 
-const MOCK = {
-  temperature: { value: '24.3', unit: '°C', delta: '+0.5', up: true },
-  humidity:    { value: '68',   unit: '%',  delta: '-2.1', up: false },
-  co2:         { value: '412',  unit: 'ppm',delta: '+8',   up: true },
-  light:       { value: '3,200',unit: 'lx', delta: '+120', up: true },
+const ERROR_STATUSES = new Set(['NULL_DATA', 'SENSOR_FAULT', 'API_TIMEOUT', 'NO_API'])
+
+function fmt(v) {
+  if (v === null || v === undefined) return '--'
+  if (v >= 10000) return v.toLocaleString()
+  if (Number.isInteger(v)) return String(v)
+  return Number(v).toFixed(1)
 }
 
-function StatWidget({ config }) {
-  const d = MOCK[config.dataKey] || { value: '--', unit: '', delta: '', up: true }
+function StatWidget({ config, kpiSlot }) {
+  const value  = kpiSlot?.value ?? null
+  const unit   = kpiSlot?.unit ?? config.unit ?? ''
+  const status = kpiSlot?.dataStatus ?? 'LOADING'
+
+  const isLoading = status === 'LOADING'
+  const isError   = ERROR_STATUSES.has(status)
+  const isCrit    = status === 'STALE_CRIT'
+  const isWarn    = status === 'STALE_WARN'
+
+  if (isLoading) {
+    return (
+      <div className="widget__stat">
+        <div className="widget__stat-value" style={{ color: 'var(--text-muted)' }}>--</div>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="widget__stat">
+        <div className="widget__stat-value" style={{ color: 'var(--text-muted)' }}>--</div>
+        <div className="widget__stat-delta" style={{ color: 'var(--text-muted)' }}>
+          {status === 'API_TIMEOUT' ? '연결 재시도 중...' : status === 'NO_API' ? '준비 중' : '센서 오류'}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="widget__stat">
-      <div className="widget__stat-value">
-        {d.value}<span className="widget__stat-unit">{d.unit}</span>
+      <div className="widget__stat-value" style={{ opacity: isCrit ? 0.6 : 1 }}>
+        <span style={{ color: isCrit ? '#f87171' : isWarn ? '#fb923c' : '#fff' }}>
+          {fmt(value)}
+        </span>
+        <span className="widget__stat-unit">{unit}</span>
       </div>
-      <div className={`widget__stat-delta ${d.up ? 'up' : 'down'}`}>
-        {d.up ? '▲' : '▼'} {d.delta}
-      </div>
+      {(isWarn || isCrit) && (
+        <div className="widget__stat-delta" style={{ color: isCrit ? '#f87171' : '#fb923c' }}>
+          {isCrit ? '🔴 데이터 지연' : '⚠ 데이터 지연'}
+        </div>
+      )}
     </div>
   )
 }
@@ -42,7 +76,7 @@ function SizeBadge({ w, h }) {
   )
 }
 
-export default function Widget({ id, config, editMode, onRemove, gridSize }) {
+export default function Widget({ id, config, kpiSlot, editMode, onRemove, gridSize }) {
   if (!config) return null
 
   return (
@@ -65,7 +99,7 @@ export default function Widget({ id, config, editMode, onRemove, gridSize }) {
         )}
       </div>
       <div className="widget__body">
-        {config.type === 'stat'  && <StatWidget config={config} />}
+        {config.type === 'stat'  && <StatWidget config={config} kpiSlot={kpiSlot} />}
         {config.type === 'chart' && <ChartWidget config={config} />}
       </div>
     </div>

@@ -10,10 +10,9 @@ function fmt(v) {
 }
 
 /** 한 후보 카드 */
-function CandidateCard({ candidate, isActive, onAdd, onRemove }) {
+function CandidateCard({ candidate, isActive, onAdd, onRemove, liveSlot }) {
   const noApi = !candidate.id
-  const mock  = candidate.id ? MOCK_API_DATA[candidate.id] : null
-  const value = mock?.value ?? null
+  const value = liveSlot?.value ?? (candidate.id ? (MOCK_API_DATA[candidate.id]?.value ?? null) : null)
 
   return (
     <div
@@ -38,9 +37,10 @@ function CandidateCard({ candidate, isActive, onAdd, onRemove }) {
 
 /** KPI 선택 모달
  * slots: 현재 활성 슬롯 configs (5개)
+ * kpiSlots: 실시간 폴링 데이터 (value 미리보기용)
  * onSlotsChange: 새 슬롯 배열 콜백
  */
-export default function KpiSelectorModal({ slots, onSlotsChange, onClose }) {
+export default function KpiSelectorModal({ slots, kpiSlots = [], onSlotsChange, onClose }) {
   const [localSlots, setLocalSlots] = useState(slots)
 
   const activeIds = localSlots.map(s => s.id)
@@ -109,6 +109,7 @@ export default function KpiSelectorModal({ slots, onSlotsChange, onClose }) {
                   const isActive = activeIds.some(
                     (id, idx) => id === c.id && localSlots[idx].title === c.title
                   )
+                  const liveSlot = kpiSlots.find(s => s.id === c.id)
                   return (
                     <CandidateCard
                       key={`${cat}-${i}`}
@@ -116,6 +117,7 @@ export default function KpiSelectorModal({ slots, onSlotsChange, onClose }) {
                       isActive={isActive}
                       onAdd={() => handleAdd(c)}
                       onRemove={() => handleRemove(c)}
+                      liveSlot={liveSlot}
                     />
                   )
                 })}
