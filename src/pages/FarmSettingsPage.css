@@ -218,6 +218,59 @@
   margin-top: 4px;
 }
 
+/* ─── API 신규/재연결 ─────────────────────────────────────────────────────── */
+.fsp__api-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.fsp__api-result {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fsp__api-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fsp__api-group-label span {
+  font-weight: 500;
+  color: var(--accent);
+  font-size: 11px;
+  background: rgba(45, 125, 210, 0.12);
+  border-radius: 8px;
+  padding: 0 6px;
+}
+
+.fsp__api-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fsp__api-chip {
+  font-size: 11px;
+  padding: 3px 9px;
+  background: rgba(45, 125, 210, 0.08);
+  border: 1px solid rgba(45, 125, 210, 0.2);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
 /* ─── 구역 삭제 모달 ──────────────────────────────────────────────────────── */
 .fsp-modal-backdrop {
   position: fixed;

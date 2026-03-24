@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { CROP_SCHEMA, DEFAULT_FARM_CONFIG, loadFarmConfig, saveFarmConfig } from '../constants/farmSchema'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
+import { API_SOURCE } from '../constants/pollingConfig'
+import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import AdminPasswordModal from '../components/AdminPasswordModal'
 import './FarmSettingsPage.css'
 
@@ -133,31 +135,52 @@ export default function FarmSettingsPage() {
           </button>
         </section>
 
-        {/* 센서 연결 상태 */}
+        {/* API 신규/재연결 */}
         <section className="fsp__section">
-          <h2 className="fsp__section-title">센서 연결 상태</h2>
-          <div className="fsp__fields">
-            <div className="fsp__field">
-              <label className="fsp__label">사용 가능 필드</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <button
-                  className={`fsp-btn ${!capLoading ? 'fsp-btn--primary' : ''}`}
-                  onClick={refetchCapabilities}
-                  disabled={capLoading}
-                >
-                  {capLoading ? '탐색 중...' : '센서 재탐색'}
-                </button>
-                {capabilities && !capLoading && (
-                  <span className="fsp__field-hint">
-                    {Object.entries(capabilities.available)
-                      .map(([zone, fields]) => `${zone}: ${fields.length}개`)
-                      .join(' / ')}
-                    {lastFetched && ` • ${lastFetched.toLocaleTimeString()} 기준`}
-                  </span>
-                )}
-              </div>
-            </div>
+          <h2 className="fsp__section-title">API 신규/재연결</h2>
+          <div className="fsp__api-row">
+            <button
+              className={`fsp-btn ${!capLoading ? 'fsp-btn--primary' : ''}`}
+              onClick={refetchCapabilities}
+              disabled={capLoading}
+            >
+              {capLoading ? '연결 확인 중...' : capabilities ? '재연결' : '연결 확인'}
+            </button>
+            {lastFetched && !capLoading && (
+              <span className="fsp__field-hint">마지막 확인: {lastFetched.toLocaleTimeString()}</span>
+            )}
           </div>
+
+          {capabilities && !capLoading && (() => {
+            const CAT_LABEL = { CLIMATE: '환경·제어', FARM_MANAGING: '경영', GROWTH: '생육', LABOR: '노동' }
+            const grouped = Object.entries(API_SOURCE).reduce((acc, [cat, ids]) => {
+              const matched = (capabilities.available['Z-1'] ?? []).filter(f => ids.includes(f))
+              if (matched.length > 0) acc[cat] = matched
+              return acc
+            }, {})
+            return (
+              <div className="fsp__api-result">
+                {Object.entries(grouped).map(([cat, fields]) => (
+                  <div key={cat} className="fsp__api-group">
+                    <div className="fsp__api-group-label">
+                      {CAT_LABEL[cat] ?? cat}
+                      <span>{fields.length}개</span>
+                    </div>
+                    <div className="fsp__api-chips">
+                      {fields.map(f => {
+                        const c = KPI_CANDIDATES.find(k => k.id === f)
+                        return (
+                          <span key={f} className="fsp__api-chip">
+                            {c ? `${c.icon} ${c.title}` : f}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
         </section>
 
         {/* 보안 설정 */}
