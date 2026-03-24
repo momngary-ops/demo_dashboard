@@ -95,9 +95,11 @@ export function useKpiPolling(slotConfigs, zoneId = null) {
   const effectiveZoneId = zoneId
     ?? Object.keys(zoneCapabilities)[0]
     ?? (capabilities?.zones?.[0] ?? 'Z-1')
-  const zoneAvailable = zoneCapabilities[effectiveZoneId]?.available
+  const _rawAvailable = zoneCapabilities[effectiveZoneId]?.available
     ?? capabilities?.available?.[effectiveZoneId]
     ?? null
+  // 빈 배열([])은 "아직 탐색 안 됨"으로 간주 → null 처리 (전체 허용)
+  const zoneAvailable = (_rawAvailable?.length > 0) ? _rawAvailable : null
 
   const buildSlots = (configs) =>
     configs.map(cfg => ({

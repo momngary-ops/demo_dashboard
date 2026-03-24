@@ -78,14 +78,18 @@ export default function ZoneApiModal({ zone, onSave, onClose }) {
 
     // 서버 zone_config.json에 저장
     try {
+      const ctrlF  = testResult?.controller?.success ? (testResult.controller.fields  ?? []) : []
+      const nutF   = testResult?.nutrient?.success   ? (testResult.nutrient.fields    ?? []) : []
+      const allF   = [...new Set([...ctrlF, ...nutF])]
       await fetch('/api/admin/zone', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           zoneId,
-          name:          label.trim(),
-          controllerUrl: controllerUrl.trim() || null,
-          nutrientUrl:   nutrientUrl.trim()   || null,
+          name:            label.trim(),
+          controllerUrl:   controllerUrl.trim() || null,
+          nutrientUrl:     nutrientUrl.trim()   || null,
+          availableFields: allF,
         }),
       })
     } catch (e) {

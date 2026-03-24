@@ -84,7 +84,7 @@ export function CapabilitiesProvider({ children }) {
       const data = await res.json()
       // zone_config에 저장된 zoneId 기준으로 필드 추출
       // (서버가 zone_config.json을 읽어 구역별 available을 반환)
-      const available = data.available?.[zoneId] ?? data.available?.['Z-1'] ?? []
+      const available = data.available?.[zoneId] ?? []
       setZoneCapabilities(prev => ({
         ...prev,
         [zoneId]: { available, loading: false, lastFetched: new Date(), error: null },

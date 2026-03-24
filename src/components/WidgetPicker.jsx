@@ -9,9 +9,14 @@ const WIDGET_TYPES = [
 ]
 
 export default function WidgetPicker({ onAdd, onClose }) {
-  const { dynamicCandidates } = useCapabilities()
+  const { dynamicCandidates, zoneCapabilities } = useCapabilities()
   const allCandidates = [...KPI_CANDIDATES, ...dynamicCandidates]
   const categories = [...new Set(allCandidates.map(c => c.category))]
+
+  const allAvailableIds = new Set(
+    Object.values(zoneCapabilities).flatMap(z => z.available ?? [])
+  )
+  const isAvailable = (id) => allAvailableIds.size > 0 && allAvailableIds.has(id)
 
   return (
     <div className="picker-overlay" onClick={onClose}>
@@ -33,12 +38,12 @@ export default function WidgetPicker({ onAdd, onClose }) {
                       {allCandidates.filter(c => c.category === cat).map(c => (
                         <button
                           key={c.id}
-                          className={`picker__item ${!c.mock ? 'picker__item--noapi' : ''}`}
-                          onClick={() => c.mock && onAdd({ type: wt.type, title: c.title, kpiId: c.id, unit: c.unit })}
-                          title={!c.mock ? 'API 준비 중' : undefined}
+                          className={`picker__item ${!isAvailable(c.id) ? 'picker__item--noapi' : ''}`}
+                          onClick={() => isAvailable(c.id) && onAdd({ type: wt.type, title: c.title, kpiId: c.id, unit: c.unit })}
+                          title={!isAvailable(c.id) ? '미연결' : undefined}
                         >
                           {c.icon} {c.title}
-                          {!c.mock && <span className="picker__item-badge">준비 중</span>}
+                          {!isAvailable(c.id) && <span className="picker__item-badge">미연결</span>}
                         </button>
                       ))}
                     </div>

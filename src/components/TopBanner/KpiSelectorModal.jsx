@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { KPI_CANDIDATES } from '../../constants/kpiCandidates'
-import { MOCK_API_DATA } from '../../mocks/kpiMockData'
 import { useCapabilities } from '../../contexts/CapabilitiesContext'
 import './KpiSelectorModal.css'
 
@@ -11,24 +10,24 @@ function fmt(v) {
 }
 
 /** 한 후보 카드 */
-function CandidateCard({ candidate, isActive, onAdd, onRemove, liveSlot }) {
-  const noApi = !candidate.id
-  const value = liveSlot?.value ?? (candidate.id ? (MOCK_API_DATA[candidate.id]?.value ?? null) : null)
+function CandidateCard({ candidate, isActive, onAdd, onRemove, liveSlot, available }) {
+  const noApi = !available
+  const value = liveSlot?.value ?? null
 
   return (
     <div
       className={`kpi-modal__cand ${isActive ? 'kpi-modal__cand--active' : ''} ${noApi ? 'kpi-modal__cand--noapi' : ''}`}
-      onClick={() => isActive ? onRemove() : onAdd()}
+      onClick={() => !noApi && (isActive ? onRemove() : onAdd())}
     >
       <div className="kpi-modal__cand-top">
         <span className="kpi-modal__cand-icon">{candidate.icon}</span>
         <span className="kpi-modal__cand-title">{candidate.title}</span>
-        {noApi && <span className="kpi-modal__badge kpi-modal__badge--lock">🔒 API 준비 중</span>}
+        {noApi && <span className="kpi-modal__badge kpi-modal__badge--lock">🔒 미연결</span>}
         {isActive && <span className="kpi-modal__badge kpi-modal__badge--active">✓ 선택됨</span>}
       </div>
       <div className="kpi-modal__cand-val">
         {noApi
-          ? <span className="kpi-modal__noapi-txt">준비 중</span>
+          ? <span className="kpi-modal__noapi-txt">미연결</span>
           : <><span style={{ color: '#fff', fontWeight: 700 }}>{fmt(value)}</span> <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>{candidate.unit}</span></>
         }
       </div>
@@ -42,8 +41,15 @@ function CandidateCard({ candidate, isActive, onAdd, onRemove, liveSlot }) {
  * onSlotsChange: 새 슬롯 배열 콜백
  */
 export default function KpiSelectorModal({ slots, kpiSlots = [], onSlotsChange, onClose }) {
-  const { dynamicCandidates } = useCapabilities()
+  const { dynamicCandidates, zoneCapabilities } = useCapabilities()
   const allCandidates = [...KPI_CANDIDATES, ...dynamicCandidates]
+
+  // 등록된 모든 구역의 availableFields 합집합
+  const allAvailableIds = new Set(
+    Object.values(zoneCapabilities).flatMap(z => z.available ?? [])
+  )
+  // 구역이 하나도 없으면 전체 비활성, 있으면 availableFields 기준
+  const isAvailable = (id) => allAvailableIds.size > 0 && allAvailableIds.has(id)
 
   const [localSlots, setLocalSlots] = useState(slots)
 
@@ -122,6 +128,7 @@ export default function KpiSelectorModal({ slots, kpiSlots = [], onSlotsChange, 
                       onAdd={() => handleAdd(c)}
                       onRemove={() => handleRemove(c)}
                       liveSlot={liveSlot}
+                      available={isAvailable(c.id)}
                     />
                   )
                 })}

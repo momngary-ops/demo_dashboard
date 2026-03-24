@@ -3,8 +3,9 @@ import { ChevronUp, ChevronDown } from 'lucide-react'
 import { useWeatherPolling } from '../../hooks/useWeatherPolling'
 import { useKpiPolling }     from '../../hooks/useKpiPolling'
 import { DEFAULT_SLOT_CONFIGS } from '../../constants/kpiCandidates'
-import { MOCK_EXTERNAL_TEMP }   from '../../mocks/kpiMockData'
 import { loadFarmConfig } from '../../constants/farmSchema'
+
+const EXT_TEMP_CONFIG = [{ id: 'xouttemp', title: '외부 온도', unit: '°C', yMin: -10, yMax: 45 }]
 import WeatherBackground    from './WeatherBackground'
 import ZoneTabs             from './ZoneTabs'
 import FixedMetricCard      from './FixedMetricCard'
@@ -33,10 +34,10 @@ export default function TopBanner({ compact = false, onToggleCompact }) {
   const [slotConfigs,  setSlotConfigs]  = useState(DEFAULT_SLOT_CONFIGS)
   const [pickerOpen,   setPickerOpen]   = useState(false)
 
-  const weather  = useWeatherPolling()
-  const kpiSlots = useKpiPolling(slotConfigs)
-
-  const extTemp = MOCK_EXTERNAL_TEMP  // 외부 온도는 고정 mock
+  const weather      = useWeatherPolling()
+  const kpiSlots     = useKpiPolling(slotConfigs)
+  const extTempSlots = useKpiPolling(EXT_TEMP_CONFIG)
+  const extTemp      = extTempSlots[0]
 
   // compact 바에 표시할 KPI 슬롯 (정상 데이터 있는 것만)
   const visibleSlots = kpiSlots.filter(s => !ERROR_STATUSES.has(s.dataStatus))
