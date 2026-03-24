@@ -18,6 +18,7 @@ import { useState, useCallback, useMemo } from 'react'
 import AdminPasswordModal from '../components/AdminPasswordModal'
 import { useKpiPolling } from '../hooks/useKpiPolling'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
+import { useCapabilities } from '../contexts/CapabilitiesContext'
 import GridLayout from 'react-grid-layout/legacy'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
@@ -154,12 +155,15 @@ export default function DashboardPage() {
     setPickerOpen(false)
   }
 
+  const { dynamicCandidates } = useCapabilities()
+  const allCandidates = useMemo(() => [...KPI_CANDIDATES, ...dynamicCandidates], [dynamicCandidates])
+
   // 위젯 KPI 폴링 — kpiId 있는 위젯만 수집 후 일괄 폴링
   const widgetSlotConfigs = useMemo(() =>
     Object.values(widgets)
       .filter(w => w.kpiId)
-      .map(w => KPI_CANDIDATES.find(c => c.id === w.kpiId) ?? { id: w.kpiId, title: w.title }),
-    [widgets]
+      .map(w => allCandidates.find(c => c.id === w.kpiId) ?? { id: w.kpiId, title: w.title }),
+    [widgets, allCandidates]
   )
   const widgetKpiSlots = useKpiPolling(widgetSlotConfigs)
   const kpiSlotMap = Object.fromEntries(widgetKpiSlots.map(s => [s.id, s]))

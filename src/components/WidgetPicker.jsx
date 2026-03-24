@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
+import { useCapabilities } from '../contexts/CapabilitiesContext'
 import './WidgetPicker.css'
 
 const WIDGET_TYPES = [
@@ -8,7 +9,9 @@ const WIDGET_TYPES = [
 ]
 
 export default function WidgetPicker({ onAdd, onClose }) {
-  const categories = [...new Set(KPI_CANDIDATES.map(c => c.category))]
+  const { dynamicCandidates } = useCapabilities()
+  const allCandidates = [...KPI_CANDIDATES, ...dynamicCandidates]
+  const categories = [...new Set(allCandidates.map(c => c.category))]
 
   return (
     <div className="picker-overlay" onClick={onClose}>
@@ -27,7 +30,7 @@ export default function WidgetPicker({ onAdd, onClose }) {
                   <div key={cat}>
                     <div className="picker__cat-label">{cat}</div>
                     <div className="picker__grid">
-                      {KPI_CANDIDATES.filter(c => c.category === cat).map(c => (
+                      {allCandidates.filter(c => c.category === cat).map(c => (
                         <button
                           key={c.id}
                           className={`picker__item ${!c.mock ? 'picker__item--noapi' : ''}`}

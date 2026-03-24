@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { KPI_CANDIDATES } from '../../constants/kpiCandidates'
 import { MOCK_API_DATA } from '../../mocks/kpiMockData'
+import { useCapabilities } from '../../contexts/CapabilitiesContext'
 import './KpiSelectorModal.css'
 
 function fmt(v) {
@@ -41,6 +42,9 @@ function CandidateCard({ candidate, isActive, onAdd, onRemove, liveSlot }) {
  * onSlotsChange: 새 슬롯 배열 콜백
  */
 export default function KpiSelectorModal({ slots, kpiSlots = [], onSlotsChange, onClose }) {
+  const { dynamicCandidates } = useCapabilities()
+  const allCandidates = [...KPI_CANDIDATES, ...dynamicCandidates]
+
   const [localSlots, setLocalSlots] = useState(slots)
 
   const activeIds = localSlots.map(s => s.id)
@@ -70,7 +74,7 @@ export default function KpiSelectorModal({ slots, kpiSlots = [], onSlotsChange, 
     onClose()
   }
 
-  const categories = [...new Set(KPI_CANDIDATES.map(c => c.category))]
+  const categories = [...new Set(allCandidates.map(c => c.category))]
 
   return (
     <div className="kpi-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -105,7 +109,7 @@ export default function KpiSelectorModal({ slots, kpiSlots = [], onSlotsChange, 
             <div key={cat} className="kpi-modal__group">
               <div className="kpi-modal__group-label">{cat}</div>
               <div className="kpi-modal__grid">
-                {KPI_CANDIDATES.filter(c => c.category === cat).map((c, i) => {
+                {allCandidates.filter(c => c.category === cat).map((c, i) => {
                   const isActive = activeIds.some(
                     (id, idx) => id === c.id && localSlots[idx].title === c.title
                   )
