@@ -28,7 +28,7 @@ const ENV = [
   {
     id: 'xco2',       title: 'CO₂ 농도',    unit: 'ppm',
     icon: '💨', bgColor: 'rgba(16,185,129,0.5)',
-    yMin: 300, yMax: 1500, category: '환경·제어',
+    yMin: 0, yMax: 1500, category: '환경·제어',
     data_no: '022', mock: true,
   },
   {
@@ -112,7 +112,7 @@ const NUTRIENT = [
   {
     id: 'water_con',  title: '함수율',        unit: '%',
     icon: '💧', bgColor: 'rgba(59,130,246,0.5)',
-    yMin: 40,  yMax: 100,  category: '양액·관수',
+    yMin: 0,   yMax: 100,  category: '양액·관수',
     data_no: '058', mock: true,
   },
   {
@@ -124,7 +124,7 @@ const NUTRIENT = [
   {
     id: 'medium_temp', title: '배지 온도',   unit: '°C',
     icon: '🌡️', bgColor: 'rgba(16,185,129,0.45)',
-    yMin: 10,  yMax: 30,   category: '양액·관수',
+    yMin: 0,   yMax: 30,   category: '양액·관수',
     data_no: '060', mock: true,
   },
 ]
