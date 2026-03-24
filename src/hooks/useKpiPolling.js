@@ -10,6 +10,33 @@ const _zoneCache   = {}  // { [zoneId]: { fields: {}, ts: number, lastReceivedAt
 const _zonePending = {}  // { [zoneId]: Promise }
 const CACHE_TTL    = 28_000  // 28초 (폴링 30초보다 약간 짧게)
 
+// ── 스파크라인 이력 ────────────────────────────────────────────────────────────
+// 폴링마다 수신한 값을 누적 → 3시간치 보관 → 20포인트 다운샘플링 후 스파크라인 전달
+const _kpiHistory  = {}            // { [kpiId]: Array<{ value: number, ts: number }> }
+const HISTORY_MS   = 3 * 60 * 60_000  // 3시간
+const SPARK_POINTS = 20
+
+function _addHistory(id, value) {
+  if (value === null || value === undefined) return
+  if (!_kpiHistory[id]) _kpiHistory[id] = []
+  const now = Date.now()
+  _kpiHistory[id].push({ value, ts: now })
+  // 3시간 초과분 제거
+  const cutoff = now - HISTORY_MS
+  _kpiHistory[id] = _kpiHistory[id].filter(p => p.ts >= cutoff)
+}
+
+function _getSparkline(id) {
+  const hist = _kpiHistory[id]
+  if (!hist || hist.length < 2) return []
+  if (hist.length <= SPARK_POINTS) return hist.map(p => p.value)
+  // 균등 간격으로 SPARK_POINTS개 추출
+  const step = (hist.length - 1) / (SPARK_POINTS - 1)
+  return Array.from({ length: SPARK_POINTS }, (_, i) =>
+    hist[Math.round(i * step)].value
+  )
+}
+
 /** 실제 API 응답 { "fields": [{ ...모든 필드 }] } → 정규화된 필드 맵 */
 function normalizeZoneFields(json) {
   const raw = json?.fields?.[0] ?? {}
@@ -67,7 +94,8 @@ async function fetchKpi(cfg, zoneId) {
   if (source === 'CLIMATE') {
     const zoneData = await fetchZoneData(zoneId)
     const value    = zoneData?.fields?.[cfg.id?.toLowerCase()] ?? null
-    return { value, data: [], lastReceivedAt: zoneData?.lastReceivedAt }
+    _addHistory(cfg.id, value)
+    return { value, data: _getSparkline(cfg.id), lastReceivedAt: zoneData?.lastReceivedAt }
   }
 
   // 경영·생육·노동 — 실제 API 미연동, 데이터 없음으로 처리
