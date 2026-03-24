@@ -170,13 +170,13 @@ const GROWTH = [
     data_no: '075', mock: false,
   },
   {
-    id: 'harvest_',   title: '수확군',       unit: '군',
+    id: 'harvest_grp',   title: '수확군',       unit: '군',
     icon: '🌾', bgColor: 'rgba(16,185,129,0.6)',
     yMin: 0,   yMax: null, category: '생육·관찰',
     data_no: '077', mock: false,
   },
   {
-    id: 'coloring_',  title: '착색군',       unit: '군',
+    id: 'coloring_grp',  title: '착색군',       unit: '군',
     icon: '🔴', bgColor: 'rgba(239,68,68,0.5)',
     yMin: 0,   yMax: 35,   category: '생육·관찰',
     data_no: '078', mock: false,
@@ -224,7 +224,7 @@ const BUSINESS = [
     data_no: '118', mock: false,
   },
   {
-    id: 'projected_yield',      title: '예상 생산량',   unit: 'ton',
+    id: 'projected_yield_ton',  title: '예상 생산량',   unit: 'ton',
     icon: '📉', bgColor: 'rgba(99,102,241,0.5)',
     yMin: 0,   yMax: null,  category: '생산·경영',
     data_no: '119', mock: false,
