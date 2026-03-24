@@ -1,0 +1,249 @@
+/* ══════════════════════════════════════════════════════════════
+   ZoneApiModal — 구역 등록 / API 연동 모달
+   ══════════════════════════════════════════════════════════════ */
+
+.zam-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.zam {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 540px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── 헤더 ─────────────────────────────────────────────────── */
+.zam__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.zam__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.zam__close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.zam__close:hover { color: var(--text-primary); background: var(--surface-2); }
+
+/* ─── 바디 ─────────────────────────────────────────────────── */
+.zam__body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.zam__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.zam__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.zam__required {
+  color: var(--danger);
+  margin-left: 2px;
+}
+
+.zam__optional {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.zam__input {
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color var(--transition);
+}
+.zam__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.zam__input--url {
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+}
+
+.zam__hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ─── 연결 테스트 버튼 ──────────────────────────────────────── */
+.zam__test-btn {
+  align-self: flex-start;
+  padding: 8px 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.zam__test-btn:hover:not(:disabled) {
+  background: var(--sidebar-hover);
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+.zam__test-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.zam__test-btn--loading {
+  color: var(--text-muted);
+}
+
+/* ─── 테스트 결과 ───────────────────────────────────────────── */
+.zam__result {
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.zam__result--ok {
+  background: rgba(76, 175, 130, 0.08);
+  border: 1px solid rgba(76, 175, 130, 0.25);
+  color: var(--text-secondary);
+}
+
+.zam__result--error {
+  background: rgba(224, 92, 92, 0.08);
+  border: 1px solid rgba(224, 92, 92, 0.25);
+  color: var(--danger);
+}
+
+.zam__result-head {
+  font-weight: 500;
+  color: #4caf82;
+}
+
+.zam__result-sub {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.zam__result-sub-err {
+  color: #c8933a;
+  font-size: 11px;
+}
+
+.zam__result-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zam__result-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.zam__result-cat {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.zam__result-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.zam__result-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(45, 125, 210, 0.08);
+  border: 1px solid rgba(45, 125, 210, 0.18);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+/* ─── 푸터 ─────────────────────────────────────────────────── */
+.zam__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.zam__btn {
+  padding: 7px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: background var(--transition);
+}
+
+.zam__btn--cancel {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+.zam__btn--cancel:hover {
+  background: var(--sidebar-hover);
+  color: var(--text-primary);
+}
+
+.zam__btn--save {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.zam__btn--save:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.zam__btn--save:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

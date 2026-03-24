@@ -1,40 +1,137 @@
 import { useState } from 'react'
 import { CROP_SCHEMA, DEFAULT_FARM_CONFIG, loadFarmConfig, saveFarmConfig } from '../constants/farmSchema'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
-import { API_SOURCE } from '../constants/pollingConfig'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import AdminPasswordModal from '../components/AdminPasswordModal'
+import ZoneApiModal from '../components/ZoneApiModal'
 import './FarmSettingsPage.css'
 
 // TODO: 농장 관리자 비밀번호 설정/변경 — 현재는 평문 localStorage 저장.
 //       추후 해시 처리 및 서버 인증으로 교체 필요.
 
+const CAT_LABEL = { '환경·제어': '환경·제어', '경영': '경영', '생육': '생육', '노동': '노동' }
+
+/** 구역 API 상태 배지 */
+function ApiStatusBadge({ status, loading }) {
+  if (loading) return <span className="zone-badge zone-badge--loading">🔄 확인 중</span>
+  switch (status) {
+    case 'connected':    return <span className="zone-badge zone-badge--ok">✅ 연결됨</span>
+    case 'error':        return <span className="zone-badge zone-badge--error">❌ 오류</span>
+    default:             return <span className="zone-badge zone-badge--pending">⚠ 미연결</span>
+  }
+}
+
+/** 연결된 필드를 카테고리별로 칩으로 표시 */
+function FieldChips({ fields }) {
+  if (!fields?.length) return null
+  const kpiMap = Object.fromEntries(KPI_CANDIDATES.map(c => [c.id, c]))
+  const groups = {}
+  for (const f of fields) {
+    const kpi = kpiMap[f]
+    const cat = kpi?.category ?? '기타'
+    if (!groups[cat]) groups[cat] = []
+    groups[cat].push({ id: f, icon: kpi?.icon ?? '', title: kpi?.title ?? f })
+  }
+  return (
+    <div className="zone-fields">
+      {Object.entries(groups).map(([cat, items]) => (
+        <div key={cat} className="zone-fields__group">
+          <span className="zone-fields__cat">{CAT_LABEL[cat] ?? cat} {items.length}개</span>
+          <div className="zone-fields__chips">
+            {items.map(f => (
+              <span key={f.id} className="zone-fields__chip">{f.icon} {f.title}</span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** 구역 행 컴포넌트 */
+function ZoneRow({ zone, index, zoneCapState, onEdit, onDelete, onReconnect }) {
+  const { status, lastConnected, availableFields } = zone.apiConfig ?? {}
+  const capLoading = zoneCapState?.loading ?? false
+  const lastTime   = lastConnected ? new Date(lastConnected).toLocaleTimeString() : null
+
+  return (
+    <div className="fsp__zone-card">
+      <div className="fsp__zone-card-top">
+        <span className="fsp__zone-index">{index + 1}</span>
+        <span className="fsp__zone-label">{zone.label}</span>
+        <ApiStatusBadge status={status} loading={capLoading} />
+        {lastTime && <span className="fsp__zone-time">마지막 확인: {lastTime}</span>}
+        <div className="fsp__zone-actions">
+          {status === 'connected'
+            ? (
+              <button className="fsp-btn" onClick={onReconnect} disabled={capLoading}>
+                재연결
+              </button>
+            ) : (
+              <button className="fsp-btn fsp-btn--primary" onClick={onEdit}>
+                API 연동
+              </button>
+            )
+          }
+          <button className="fsp-btn fsp-btn--danger" onClick={onDelete}>삭제</button>
+        </div>
+      </div>
+
+      {status === 'connected' && availableFields?.length > 0 && (
+        <FieldChips fields={availableFields} />
+      )}
+      {status !== 'connected' && (
+        <p className="fsp__zone-notice">구역 등록 완료를 위해 API 연동이 필요합니다.</p>
+      )}
+    </div>
+  )
+}
+
 export default function FarmSettingsPage() {
   const [config, setConfig] = useState(loadFarmConfig)
   const [saved,  setSaved]  = useState(false)
-  const [pendingDeleteId, setPendingDeleteId] = useState(null)
-  const { capabilities, loading: capLoading, lastFetched, refetch: refetchCapabilities } = useCapabilities()
+  const [pendingDeleteId,  setPendingDeleteId]  = useState(null)
+  const [zoneModalTarget,  setZoneModalTarget]  = useState(undefined) // undefined=닫힘, null=신규, zone=수정
+  const { zoneCapabilities, refetchZone } = useCapabilities()
 
   const update = (key, value) => { setSaved(false); setConfig(prev => ({ ...prev, [key]: value })) }
 
   // ─── 구역 핸들러 ───────────────────────────────────────────────────────────
-  const handleZoneLabel = (id, label) => {
+  const handleZoneSave = (updatedZone) => {
     setSaved(false)
-    setConfig(prev => ({ ...prev, zones: prev.zones.map(z => z.id === id ? { ...z, label } : z) }))
-  }
-
-  const handleZoneAdd = () => {
-    setSaved(false)
-    setConfig(prev => ({
-      ...prev,
-      zones: [...prev.zones, { id: String(Date.now()), label: `${prev.zones.length + 1}구역` }],
-    }))
+    setConfig(prev => {
+      const exists = prev.zones.some(z => z.id === updatedZone.id)
+      return {
+        ...prev,
+        zones: exists
+          ? prev.zones.map(z => z.id === updatedZone.id ? updatedZone : z)
+          : [...prev.zones, updatedZone],
+      }
+    })
+    setZoneModalTarget(undefined)
   }
 
   const handleZoneDeleteConfirm = () => {
     setSaved(false)
     setConfig(prev => ({ ...prev, zones: prev.zones.filter(z => z.id !== pendingDeleteId) }))
+    // 서버 zone_config.json에서도 제거
+    fetch(`/api/admin/zone/${pendingDeleteId}`, { method: 'DELETE' }).catch(() => {})
     setPendingDeleteId(null)
+  }
+
+  const handleReconnect = async (zone) => {
+    const result = await refetchZone(zone)
+    if (result.success) {
+      // capabilities 재확인 성공 → apiConfig 업데이트
+      setConfig(prev => ({
+        ...prev,
+        zones: prev.zones.map(z =>
+          z.id === zone.id
+            ? { ...z, apiConfig: { ...z.apiConfig, status: 'connected', lastConnected: new Date().toISOString(), availableFields: result.fields } }
+            : z
+        ),
+      }))
+    }
   }
 
   // ─── 저장 ────────────────────────────────────────────────────────────────
@@ -58,6 +155,15 @@ export default function FarmSettingsPage() {
           confirmLabel="삭제 확인"
           onConfirm={handleZoneDeleteConfirm}
           onCancel={() => setPendingDeleteId(null)}
+        />
+      )}
+
+      {/* 구역 등록 / API 연동 모달 */}
+      {zoneModalTarget !== undefined && (
+        <ZoneApiModal
+          zone={zoneModalTarget}
+          onSave={handleZoneSave}
+          onClose={() => setZoneModalTarget(undefined)}
         />
       )}
 
@@ -109,85 +215,36 @@ export default function FarmSettingsPage() {
           </div>
         </section>
 
-        {/* 구역 설정 */}
+        {/* 구역 설정 — API 연동 포함 */}
         <section className="fsp__section">
           <h2 className="fsp__section-title">
             구역 설정
             <span className="fsp__section-count">{config.zones.length}개</span>
           </h2>
+
           <div className="fsp__zones">
+            {config.zones.length === 0 && (
+              <p className="fsp__zone-empty">등록된 구역이 없습니다. 구역을 추가하고 API를 연동해주세요.</p>
+            )}
             {config.zones.map((zone, i) => (
-              <div key={zone.id} className="fsp__zone-row">
-                <span className="fsp__zone-index">{i + 1}</span>
-                <input className="fsp__input fsp__input--zone" type="text"
-                  value={zone.label} placeholder="구역 이름"
-                  onChange={e => handleZoneLabel(zone.id, e.target.value)} />
-                <button className="fsp-btn fsp-btn--danger"
-                  onClick={() => setPendingDeleteId(zone.id)}
-                  disabled={config.zones.length <= 1}>
-                  삭제
-                </button>
-              </div>
+              <ZoneRow
+                key={zone.id}
+                zone={zone}
+                index={i}
+                zoneCapState={zoneCapabilities[zone.id]}
+                onEdit={() => setZoneModalTarget(zone)}
+                onDelete={() => setPendingDeleteId(zone.id)}
+                onReconnect={() => handleReconnect(zone)}
+              />
             ))}
           </div>
-          <button className="fsp-btn fsp-btn--add" onClick={handleZoneAdd}>
+
+          <button className="fsp-btn fsp-btn--add" onClick={() => setZoneModalTarget(null)}>
             + 구역 추가
           </button>
         </section>
 
-        {/* API 신규/재연결 */}
-        <section className="fsp__section">
-          <h2 className="fsp__section-title">API 신규/재연결</h2>
-          <div className="fsp__api-row">
-            <button
-              className={`fsp-btn ${!capLoading ? 'fsp-btn--primary' : ''}`}
-              onClick={refetchCapabilities}
-              disabled={capLoading}
-            >
-              {capLoading ? '연결 확인 중...' : capabilities ? '재연결' : '연결 확인'}
-            </button>
-            {lastFetched && !capLoading && (
-              <span className="fsp__field-hint">마지막 확인: {lastFetched.toLocaleTimeString()}</span>
-            )}
-          </div>
-
-          {capabilities && !capLoading && (() => {
-            const CAT_LABEL = { CLIMATE: '환경·제어', FARM_MANAGING: '경영', GROWTH: '생육', LABOR: '노동' }
-            const grouped = Object.entries(API_SOURCE).reduce((acc, [cat, ids]) => {
-              const matched = (capabilities.available['Z-1'] ?? []).filter(f => ids.includes(f))
-              if (matched.length > 0) acc[cat] = matched
-              return acc
-            }, {})
-            return (
-              <div className="fsp__api-result">
-                {Object.entries(grouped).map(([cat, fields]) => (
-                  <div key={cat} className="fsp__api-group">
-                    <div className="fsp__api-group-label">
-                      {CAT_LABEL[cat] ?? cat}
-                      <span>{fields.length}개</span>
-                    </div>
-                    <div className="fsp__api-chips">
-                      {fields.map(f => {
-                        const c = KPI_CANDIDATES.find(k => k.id === f)
-                        return (
-                          <span key={f} className="fsp__api-chip">
-                            {c ? `${c.icon} ${c.title}` : f}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )
-          })()}
-        </section>
-
         {/* 보안 설정 */}
-        {/* TODO: 농장 관리자 비밀번호 설정/변경 구현 필요
-                  - 현재: 평문 저장, 단순 일치 비교
-                  - 개선: bcrypt 해시 처리 + 서버 인증으로 교체
-                  - UI: 현재 비밀번호 확인 → 새 비밀번호 → 확인 입력 3단계 */}
         <section className="fsp__section">
           <h2 className="fsp__section-title">
             보안

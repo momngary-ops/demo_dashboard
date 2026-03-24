@@ -37,6 +37,24 @@ export const CROP_SCHEMA = {
 // ─── 농장 설정 ────────────────────────────────────────────────────────────────
 export const FARM_CONFIG_KEY = 'farm:config'
 
+// ─── 구역 apiConfig 기본값 ────────────────────────────────────────────────────
+export function defaultApiConfig() {
+  return {
+    controllerUrl:   '',      // 제어기 URL (예: http://api.gcsmagma.com/.../1)
+    nutrientUrl:     '',      // 양액기 URL (선택, 빈 문자열 = 미사용)
+    status:          'disconnected', // 'connected' | 'disconnected' | 'error'
+    lastConnected:   null,    // ISO timestamp
+    availableFields: [],      // 연결 테스트에서 확인된 필드 목록
+    errorMessage:    null,
+  }
+}
+
+// 구버전 { id, label } → 신버전 { id, label, apiConfig } 으로 자동 마이그레이션
+function migrateZone(z) {
+  if (z.apiConfig) return z
+  return { ...z, apiConfig: defaultApiConfig() }
+}
+
 export const DEFAULT_FARM_CONFIG = {
   farmName:      '그린스케이프 대동팜',
   hectares:      10,
@@ -45,18 +63,19 @@ export const DEFAULT_FARM_CONFIG = {
   // TODO: 농장 관리자 비밀번호 설정/변경 — 현재는 평문 localStorage 저장.
   //       추후 해시 처리 및 서버 인증으로 교체 필요.
   adminPassword: '0852',
-  zones: [
-    { id: 'z1', label: '1구역' },
-    { id: 'z2', label: '2구역' },
-    { id: 'z3', label: '3구역' },
-    { id: 'z4', label: '4구역' },
-  ],
+  zones: [],  // 기본값: 구역 없음. 관리자가 직접 등록.
 }
 
 export function loadFarmConfig() {
   try {
     const raw = localStorage.getItem(FARM_CONFIG_KEY)
-    return raw ? { ...DEFAULT_FARM_CONFIG, ...JSON.parse(raw) } : DEFAULT_FARM_CONFIG
+    if (!raw) return DEFAULT_FARM_CONFIG
+    const parsed = JSON.parse(raw)
+    return {
+      ...DEFAULT_FARM_CONFIG,
+      ...parsed,
+      zones: (parsed.zones ?? []).map(migrateZone),
+    }
   } catch {
     return DEFAULT_FARM_CONFIG
   }

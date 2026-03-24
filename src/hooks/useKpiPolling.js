@@ -28,10 +28,22 @@ function buildSlot(cfg, raw, zoneAvailable = null) {
   return { ...cfg, value, data, dataStatus, lastReceivedAt }
 }
 
-export function useKpiPolling(slotConfigs) {
-  const { capabilities } = useCapabilities()
-  // 현재 단일 구역(Z-1) 기준 — 다중 구역 확장 시 zoneId prop으로 분리
-  const zoneAvailable = capabilities?.available?.['Z-1'] ?? null
+/**
+ * useKpiPolling
+ *
+ * @param {Array}  slotConfigs  — KPI 슬롯 설정 배열 [{ id, title, ... }]
+ * @param {string} [zoneId]     — 대상 구역 ID (예: 'Z-1'). 생략 시 첫 번째 연결 구역 자동 선택.
+ */
+export function useKpiPolling(slotConfigs, zoneId = null) {
+  const { capabilities, zoneCapabilities } = useCapabilities()
+
+  // zoneId 없으면 capabilities에서 첫 번째 구역 자동 선택 (하위 호환)
+  const effectiveZoneId = zoneId
+    ?? Object.keys(zoneCapabilities)[0]
+    ?? (capabilities?.zones?.[0] ?? 'Z-1')
+  const zoneAvailable = zoneCapabilities[effectiveZoneId]?.available
+    ?? capabilities?.available?.[effectiveZoneId]
+    ?? null
 
   const buildSlots = (configs) =>
     configs.map(cfg => ({
