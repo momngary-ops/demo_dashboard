@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CapabilitiesProvider } from './contexts/CapabilitiesContext'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DashboardPage from './pages/DashboardPage'
@@ -31,6 +32,7 @@ export default function App() {
   }
 
   return (
+    <CapabilitiesProvider>
     <div className="layout">
       <Sidebar
         activePage={activePage}
@@ -53,5 +55,6 @@ export default function App() {
         </main>
       </div>
     </div>
+    </CapabilitiesProvider>
   )
 }

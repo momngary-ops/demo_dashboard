@@ -4,10 +4,12 @@ const SENSOR_FAULT_BOUNDS = { min: -999, max: 9999 }
 
 /**
  * KPI 데이터 상태 판정
- * @returns {'OK'|'LOADING'|'NULL_DATA'|'SENSOR_FAULT'|'STALE_WARN'|'STALE_CRIT'|'API_TIMEOUT'|'NO_API'|'OUT_OF_RANGE'}
+ * @param {boolean} isAvailable capabilities 목록에 존재 여부 (false → SENSOR_LOST)
+ * @returns {'OK'|'LOADING'|'NULL_DATA'|'SENSOR_FAULT'|'STALE_WARN'|'STALE_CRIT'|'API_TIMEOUT'|'NO_API'|'OUT_OF_RANGE'|'SENSOR_LOST'}
  */
-export function resolveKpiStatus(apiId, value, lastReceivedAt, yMin, yMax) {
+export function resolveKpiStatus(apiId, value, lastReceivedAt, yMin, yMax, isAvailable = true) {
   if (!apiId) return 'NO_API'
+  if (!isAvailable) return 'SENSOR_LOST'
   if (lastReceivedAt === undefined) return 'LOADING'
 
   const ageMs = Date.now() - new Date(lastReceivedAt).getTime()

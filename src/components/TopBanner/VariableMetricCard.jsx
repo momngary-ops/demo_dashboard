@@ -5,9 +5,10 @@ const STATUS_MSGS = {
   SENSOR_FAULT: '센서 오류',
   API_TIMEOUT:  '연결 재시도 중...',
   NO_API:       '준비 중',
+  SENSOR_LOST:  '센서 연결 끊김',
 }
 
-const ERROR_STATUSES = new Set(['NULL_DATA', 'SENSOR_FAULT', 'API_TIMEOUT', 'NO_API'])
+const ERROR_STATUSES = new Set(['NULL_DATA', 'SENSOR_FAULT', 'API_TIMEOUT', 'NO_API', 'SENSOR_LOST'])
 
 function fmt(value) {
   if (value === null || value === undefined) return '--'
@@ -58,6 +59,7 @@ export default function VariableMetricCard({ slot }) {
         <div className="var-card__msg">
           {dataStatus === 'NO_API'       && <span className="var-card__icon-lg">🔒</span>}
           {dataStatus === 'SENSOR_FAULT' && <span className="var-card__icon-lg">⚠️</span>}
+          {dataStatus === 'SENSOR_LOST'  && <span className="var-card__icon-lg">⚠️</span>}
           {dataStatus === 'API_TIMEOUT'  && <span className="var-card__spinner" />}
           <span>{STATUS_MSGS[dataStatus]}</span>
         </div>

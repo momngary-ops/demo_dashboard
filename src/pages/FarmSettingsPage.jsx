@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CROP_SCHEMA, DEFAULT_FARM_CONFIG, loadFarmConfig, saveFarmConfig } from '../constants/farmSchema'
+import { useCapabilities } from '../contexts/CapabilitiesContext'
 import AdminPasswordModal from '../components/AdminPasswordModal'
 import './FarmSettingsPage.css'
 
@@ -10,6 +11,7 @@ export default function FarmSettingsPage() {
   const [config, setConfig] = useState(loadFarmConfig)
   const [saved,  setSaved]  = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState(null)
+  const { capabilities, loading: capLoading, lastFetched, refetch: refetchCapabilities } = useCapabilities()
 
   const update = (key, value) => { setSaved(false); setConfig(prev => ({ ...prev, [key]: value })) }
 
@@ -129,6 +131,33 @@ export default function FarmSettingsPage() {
           <button className="fsp-btn fsp-btn--add" onClick={handleZoneAdd}>
             + 구역 추가
           </button>
+        </section>
+
+        {/* 센서 연결 상태 */}
+        <section className="fsp__section">
+          <h2 className="fsp__section-title">센서 연결 상태</h2>
+          <div className="fsp__fields">
+            <div className="fsp__field">
+              <label className="fsp__label">사용 가능 필드</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  className={`fsp-btn ${!capLoading ? 'fsp-btn--primary' : ''}`}
+                  onClick={refetchCapabilities}
+                  disabled={capLoading}
+                >
+                  {capLoading ? '탐색 중...' : '센서 재탐색'}
+                </button>
+                {capabilities && !capLoading && (
+                  <span className="fsp__field-hint">
+                    {Object.entries(capabilities.available)
+                      .map(([zone, fields]) => `${zone}: ${fields.length}개`)
+                      .join(' / ')}
+                    {lastFetched && ` • ${lastFetched.toLocaleTimeString()} 기준`}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* 보안 설정 */}

@@ -1,7 +1,7 @@
 import { GripHorizontal, X } from 'lucide-react'
 import './Widget.css'
 
-const ERROR_STATUSES = new Set(['NULL_DATA', 'SENSOR_FAULT', 'API_TIMEOUT', 'NO_API'])
+const ERROR_STATUSES = new Set(['NULL_DATA', 'SENSOR_FAULT', 'API_TIMEOUT', 'NO_API', 'SENSOR_LOST'])
 
 function fmt(v) {
   if (v === null || v === undefined) return '--'
@@ -33,7 +33,9 @@ function StatWidget({ config, kpiSlot }) {
       <div className="widget__stat">
         <div className="widget__stat-value" style={{ color: 'var(--text-muted)' }}>--</div>
         <div className="widget__stat-delta" style={{ color: 'var(--text-muted)' }}>
-          {status === 'API_TIMEOUT' ? '연결 재시도 중...' : status === 'NO_API' ? '준비 중' : '센서 오류'}
+          {status === 'API_TIMEOUT'  ? '연결 재시도 중...' :
+           status === 'NO_API'       ? '준비 중' :
+           status === 'SENSOR_LOST'  ? '⚠ 센서 연결 끊김' : '센서 오류'}
         </div>
       </div>
     )

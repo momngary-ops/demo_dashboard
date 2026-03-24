@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { resolveKpiStatus } from '../utils/kpiStatusResolver'
 import { API_SOURCE, POLLING } from '../constants/pollingConfig'
+import { useCapabilities } from '../contexts/CapabilitiesContext'
 
 async function fetchKpi(cfg) {
   const source = Object.entries(API_SOURCE)
@@ -18,15 +19,20 @@ async function fetchKpi(cfg) {
   return res.json()  // { value, data, lastReceivedAt }
 }
 
-function buildSlot(cfg, raw) {
-  const value = raw?.value ?? null
-  const data  = raw?.data  ?? []
+function buildSlot(cfg, raw, zoneAvailable = null) {
+  const value          = raw?.value ?? null
+  const data           = raw?.data  ?? []
   const lastReceivedAt = raw?.lastReceivedAt
-  const dataStatus = resolveKpiStatus(cfg.id, value, lastReceivedAt, cfg.yMin, cfg.yMax)
+  const isAvailable    = !zoneAvailable || zoneAvailable.includes(cfg.id)
+  const dataStatus     = resolveKpiStatus(cfg.id, value, lastReceivedAt, cfg.yMin, cfg.yMax, isAvailable)
   return { ...cfg, value, data, dataStatus, lastReceivedAt }
 }
 
 export function useKpiPolling(slotConfigs) {
+  const { capabilities } = useCapabilities()
+  // 현재 단일 구역(Z-1) 기준 — 다중 구역 확장 시 zoneId prop으로 분리
+  const zoneAvailable = capabilities?.available?.['Z-1'] ?? null
+
   const buildSlots = (configs) =>
     configs.map(cfg => ({
       ...cfg,
@@ -46,14 +52,14 @@ export function useKpiPolling(slotConfigs) {
         .then(results => setSlots(
           slotConfigs.map((cfg, i) =>
             results[i]
-              ? buildSlot(cfg, results[i])
+              ? buildSlot(cfg, results[i], zoneAvailable)
               : { ...cfg, value: null, data: [], dataStatus: cfg.id ? 'API_TIMEOUT' : 'NO_API', lastReceivedAt: undefined }
           )
         ))
     load()
     const timer = setInterval(load, POLLING.KPI_INTERVAL_MS)
     return () => clearInterval(timer)
-  }, [configKey]) // eslint-disable-line
+  }, [configKey, zoneAvailable]) // eslint-disable-line
 
   return slots
 }
