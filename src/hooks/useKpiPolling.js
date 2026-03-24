@@ -57,7 +57,7 @@ async function fetchZoneData(zoneId) {
 
 /** KPI 1개 fetch
  *  - CLIMATE  → 구역 전체 데이터에서 필드 추출 (캐시 공유)
- *  - 경영/생육/노동 → 기존 mock 엔드포인트 유지 (실제 API 미제공)
+ *  - 경영/생육/노동 → 실제 API 미제공, null 반환 (NO_API 표시, 오류 없음)
  */
 async function fetchKpi(cfg, zoneId) {
   const source = Object.entries(API_SOURCE)
@@ -70,15 +70,8 @@ async function fetchKpi(cfg, zoneId) {
     return { value, data: [], lastReceivedAt: zoneData?.lastReceivedAt }
   }
 
-  // 경영·생육·노동 — mock 엔드포인트
-  const today = new Date().toISOString().slice(0, 10)
-  const urlMap = {
-    FARM_MANAGING: `/api/farm-managing/latest?fields=${cfg.id}`,
-    GROWTH:        `/api/growth/latest?fields=${cfg.id}`,
-    LABOR:         `/api/labor/task-rate?date=${today}`,
-  }
-  const res = await fetch(urlMap[source], { signal: AbortSignal.timeout(POLLING.REQUEST_TIMEOUT_MS) })
-  return res.json()
+  // 경영·생육·노동 — 실제 API 미연동, 데이터 없음으로 처리
+  return null
 }
 
 function buildSlot(cfg, raw, zoneAvailable = null) {
