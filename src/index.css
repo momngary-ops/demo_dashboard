@@ -5,19 +5,19 @@
 }
 
 :root {
-  --bg:               #0d1520;
-  --sidebar-bg:       #101d2b;
-  --sidebar-hover:    #162436;
-  --sidebar-active:   #1a2d42;
-  --header-bg:        #101d2b;
-  --surface:          #131f30;
-  --surface-2:        #192840;
-  --border:           #1c2e42;
+  --bg:               #0e1117;
+  --sidebar-bg:       #13161e;
+  --sidebar-hover:    #1c2028;
+  --sidebar-active:   #212630;
+  --header-bg:        #13161e;
+  --surface:          #161a23;
+  --surface-2:        #1d2230;
+  --border:           #252b38;
   --text-primary:     #dde8f0;
-  --text-secondary:   #6e93b0;
-  --text-muted:       #3f607a;
-  --accent:           #2d7dd2;
-  --accent-hover:     #3d8fe8;
+  --text-secondary:   #7a8a9e;
+  --text-muted:       #444e5f;
+  --accent:           #E5401A;
+  --accent-hover:     #F05228;
   --danger:           #e05c5c;
 
   --sidebar-w:        220px;
@@ -50,6 +50,22 @@ button {
   cursor: pointer;
   color: inherit;
   font: inherit;
+}
+
+/* ── 반응형 변수 ─────────────────────────────── */
+@media (max-width: 1199px) {
+  :root {
+    --sidebar-w:    56px;
+    --sidebar-w-sm: 56px;
+  }
+}
+@media (max-width: 767px) {
+  :root {
+    --sidebar-w:    0px;
+    --sidebar-w-sm: 0px;
+    --header-h:     48px;
+    font-size:      12px;
+  }
 }
 
 /* scrollbar */

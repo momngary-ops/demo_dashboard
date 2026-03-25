@@ -234,7 +234,7 @@
 }
 .zone-tabs__tab--active {
   color: #fff;
-  border-bottom-color: #fbbf24;
+  border-bottom-color: #E5401A;
   background: rgba(255, 255, 255, 0.12);
 }
 
@@ -305,7 +305,13 @@
   gap: 8px;
   padding: 6px 16px 10px;
   align-items: stretch;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+  -webkit-overflow-scrolling: touch;
 }
+.topbanner__cards::-webkit-scrollbar { height: 3px; }
+.topbanner__cards::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
 
 /* ================================================
    고정 카드 (외부온도)
@@ -424,3 +430,23 @@
 .sk-sm    { height: 10px; width: 60%;  margin-bottom: 4px; }
 .sk-lg    { height: 22px; width: 80%; }
 .sk-spark { height: 28px; width: 100%; margin-top: 4px; }
+
+/* ================================================
+   반응형
+   ================================================ */
+@media (max-width: 767px) {
+  .topbanner__farm-name { font-size: 20px; }
+  .topbanner__info-row  { padding: 4px 12px; }
+  .topbanner__cards     { padding: 4px 12px 8px; gap: 6px; }
+  .fixed-card           { min-width: 90px; padding: 6px 12px; }
+  .fixed-card__value    { font-size: 24px; }
+  .var-card             { min-width: 100px; }
+  .var-card__value      { font-size: 18px; }
+  .topbanner__zone-row  { padding: 5px 12px; }
+  .zone-tabs__tab       { padding: 3px 9px; font-size: 11px; }
+}
+
+@media (max-width: 480px) {
+  .topbanner__kpi-btn   { display: none; }
+  .topbanner__farm-name { font-size: 17px; }
+}
