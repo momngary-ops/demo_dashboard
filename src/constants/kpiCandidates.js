@@ -18,24 +18,44 @@ const ENV = [
     icon: '🌡️', bgColor: 'rgba(16,185,129,0.55)',
     yMin: 10,  yMax: 40,   category: '환경·제어',
     data_no: '020',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '현재값', showTrend: true, showDelta: true, deltaWindowMin: 30 },
+      { label: '환기설정 / 난방설정', kpiId: 'xventtemp1', kpiId2: 'xheattemp1', unit: '°C' },
+    ],
   },
   {
     id: 'xinhum1',    title: '내부 습도',    unit: '%',
     icon: '💧', bgColor: 'rgba(59,130,246,0.55)',
     yMin: 0,   yMax: 100,  category: '환경·제어',
     data_no: '021',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '현재값', showTrend: true, showDelta: true, deltaWindowMin: 30 },
+      { label: '이슬점', kpiId: 'xdhum', unit: '°C' },
+    ],
   },
   {
     id: 'xco2',       title: 'CO₂ 농도',    unit: 'ppm',
     icon: '💨', bgColor: 'rgba(16,185,129,0.5)',
     yMin: 0, yMax: 1500, category: '환경·제어',
     data_no: '022',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '현재 농도', showTrend: true, showDelta: true, deltaWindowMin: 30 },
+      { label: '설정값', kpiId: 'xco2set', unit: 'ppm' },
+    ],
   },
   {
     id: 'xinsunvol',  title: '내부 일사량',  unit: 'W/m²',
     icon: '🌤️', bgColor: 'rgba(245,158,11,0.55)',
     yMin: 0,   yMax: 2000, category: '환경·제어',
     data_no: '008',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '실시간', showTrend: true, showDelta: true, deltaWindowMin: 30 },
+      { label: '누적 일사량', kpiId: 'xinsunadd', unit: 'J/cm²' },
+    ],
   },
   {
     id: 'xinsunadd',  title: '누적 일사량',  unit: 'J/cm²',
@@ -56,22 +76,35 @@ const ENV = [
     data_no: '041',
   },
   {
-    id: 'xhumlack',   title: '수분 부족분',  unit: 'g/m³',
+    id: 'xhumlack',   title: 'VPD',          unit: 'g/m³',
     icon: '📉', bgColor: 'rgba(59,130,246,0.45)',
     yMin: 0,   yMax: 20,   category: '환경·제어',
     data_no: '014',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '현재값', showTrend: true, showDelta: true, deltaWindowMin: 60 },
+      { label: '12h 최고 / 최저', type: 'sparkline-range' },
+    ],
   },
   {
     id: 'xabhum',     title: '절대 습도',    unit: 'g/m³',
     icon: '🌫️', bgColor: 'rgba(59,130,246,0.5)',
     yMin: 0,   yMax: 35,   category: '환경·제어',
     data_no: '016',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '현재값', showTrend: true, showDelta: true, deltaWindowMin: 30 },
+    ],
   },
   {
     id: 'xdhum',      title: '이슬점',       unit: '°C',
     icon: '💦', bgColor: 'rgba(99,102,241,0.45)',
     yMin: -5,  yMax: 25,   category: '환경·제어',
     data_no: '017',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '현재값', showTrend: false, showDelta: false },
+    ],
   },
   {
     id: 'xgndtemp',   title: '지온',         unit: '°C',
@@ -90,6 +123,31 @@ const ENV = [
     icon: '☀️', bgColor: 'rgba(245,158,11,0.5)',
     yMin: 0,   yMax: 1000, category: '환경·제어',
     data_no: '006',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '실시간', showTrend: true, showDelta: true, deltaWindowMin: 30 },
+      { label: '누적 일사량', kpiId: 'xsunadd', unit: 'J/cm²' },
+    ],
+  },
+  {
+    id: 'xouttemp',   title: '외부 온도',    unit: '°C',
+    icon: '🌡️', bgColor: 'rgba(239,68,68,0.4)',
+    yMin: -10, yMax: 40,   category: '환경·제어',
+    data_no: '003',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '현재 온도', showTrend: true, showDelta: true, deltaWindowMin: 60 },
+      { label: '최고 / 최저', type: 'sparkline-range' },
+    ],
+  },
+]
+
+// xco2set — subrow 전용 (chart-main에서 CO₂ 설정값 표시용, 독립 위젯 아님)
+const ENV_SECONDARY = [
+  {
+    id: 'xco2set', title: 'CO₂ 설정값', unit: 'ppm',
+    icon: null, bgColor: null,
+    category: '환경·제어', data_no: '023',
   },
 ]
 
@@ -240,7 +298,10 @@ const BUSINESS = [
 // ─────────────────────────────────────────────
 // 전체 풀 (34개) — 순서 = KPI 선택 모달 표시 순서
 // ─────────────────────────────────────────────
-export const KPI_CANDIDATES = [...ENV, ...NUTRIENT, ...GROWTH, ...BUSINESS]
+export const KPI_CANDIDATES = [...ENV, ...ENV_SECONDARY, ...NUTRIENT, ...GROWTH, ...BUSINESS]
+
+/** chart-main 타입 KPI만 — WidgetPicker 카드메인 섹션용 */
+export const CHART_MAIN_CANDIDATES = KPI_CANDIDATES.filter(c => c.cardType === 'chart-main')
 
 /**
  * 기본 활성 슬롯 5개

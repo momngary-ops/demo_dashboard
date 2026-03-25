@@ -14,7 +14,7 @@ export const API_SOURCE = {
   CLIMATE: [
     'xouttemp', 'xwindsp', 'xsunvol', 'xsunadd', 'sunvol', 'sunadd',
     'xgndtemp', 'xgndhum', 'xintemp1', 'in_temp', 'xinhum1', 'in_hum',
-    'xco2', 'xinsunvol', 'xinsunadd', 'xsthum', 'xabhum', 'xhumlack',
+    'xco2', 'xco2set', 'xinsunvol', 'xinsunadd', 'xsthum', 'xabhum', 'xhumlack',
     'xdhum', 'xventtemp1', 'xheattemp1', 'now_ec', 'now_ph', 'set_ec',
     'set_ph', 'medium_ec', 'medium_temp', 'pi_ec', 'water_con',
   ],

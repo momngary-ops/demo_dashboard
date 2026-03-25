@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { X, ChevronDown, ChevronRight } from 'lucide-react'
-import { KPI_CANDIDATES } from '../constants/kpiCandidates'
+import { KPI_CANDIDATES, CHART_MAIN_CANDIDATES } from '../constants/kpiCandidates'
+import { GAUGE_SET_GROUPS, STATUS_PANEL_GROUPS } from '../constants/actuatorCandidates'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
 import { useKpiPolling } from '../hooks/useKpiPolling'
 import './WidgetPicker.css'
@@ -63,6 +64,23 @@ export default function WidgetPicker({ onAdd, onClose }) {
         </div>
         <div className="picker__body">
 
+          {/* 메인 카드 (chart-main) */}
+          <div className="picker__section">
+            <div className="picker__section-title">메인 카드</div>
+            <p className="picker__section-desc">스파크라인 + 현재값 + 보조 지표 (기본 4×3)</p>
+            <div className="picker__grid">
+              {CHART_MAIN_CANDIDATES.map(c => (
+                <KpiItem
+                  key={c.id}
+                  c={c}
+                  avail={isAvailable(c.id)}
+                  liveMap={liveMap}
+                  onAdd={def => onAdd({ ...def, type: 'chart-main' })}
+                />
+              ))}
+            </div>
+          </div>
+
           {/* 수치 카드 */}
           <div className="picker__section">
             <div className="picker__section-title">수치 카드</div>
@@ -105,14 +123,69 @@ export default function WidgetPicker({ onAdd, onClose }) {
             )}
           </div>
 
-          {/* 차트 */}
+          {/* 차트 (멀티라인) */}
           <div className="picker__section">
             <div className="picker__section-title">차트</div>
-            <p className="picker__section-desc">시계열 데이터 시각화</p>
+            <p className="picker__section-desc">시계열 멀티라인 차트 (주 KPI + 오버레이)</p>
             <div className="picker__grid">
-              <button className="picker__item picker__item--noapi" disabled>
-                차트 (준비 중)
-              </button>
+              {[...KPI_CANDIDATES, ...dynamicCandidates].map(c => {
+                const avail = isAvailable(c.id)
+                return (
+                  <button
+                    key={c.id}
+                    className={`picker__item ${!avail ? 'picker__item--noapi' : ''}`}
+                    onClick={() => avail && onAdd({ type: 'chart', title: c.title, kpiId: c.id, unit: c.unit, overlayIds: [] })}
+                    title={!avail ? '미연결' : c.title}
+                  >
+                    {c.icon} {c.title}
+                    {!avail && <span className="picker__item-badge">미연결</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* 구동기 개도 */}
+          <div className="picker__section">
+            <div className="picker__section-title">구동기 개도</div>
+            <p className="picker__section-desc">창·커튼·밸브 개도 수평 바 목록</p>
+            <div className="picker__grid">
+              {GAUGE_SET_GROUPS.map(g => {
+                const hasAny = g.items.some(item => allAvailableIds.has(item.id))
+                return (
+                  <button
+                    key={g.id}
+                    className={`picker__item ${!hasAny ? 'picker__item--noapi' : ''}`}
+                    onClick={() => hasAny && onAdd({ type: 'gauge-set', title: g.title, groupId: g.id })}
+                    title={!hasAny ? '미연결' : g.title}
+                  >
+                    {g.title}
+                    {!hasAny && <span className="picker__item-badge">미연결</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* 작동 상태 */}
+          <div className="picker__section">
+            <div className="picker__section-title">작동 상태</div>
+            <p className="picker__section-desc">자수동 + ON/OFF 상태 패널</p>
+            <div className="picker__grid">
+              {STATUS_PANEL_GROUPS.map(g => {
+                const hasAny = g.items.some(item => allAvailableIds.has(item.id))
+                return (
+                  <button
+                    key={g.id}
+                    className={`picker__item ${!hasAny ? 'picker__item--noapi' : ''}`}
+                    onClick={() => hasAny && onAdd({ type: 'status-panel', title: g.title, groupId: g.id })}
+                    title={!hasAny ? '미연결' : g.title}
+                  >
+                    {g.title}
+                    {!hasAny && <span className="picker__item-badge">미연결</span>}
+                  </button>
+                )
+              })}
             </div>
           </div>
 

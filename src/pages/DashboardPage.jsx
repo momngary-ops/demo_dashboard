@@ -18,6 +18,7 @@ import { useState, useCallback, useMemo, useRef } from 'react'
 import AdminPasswordModal from '../components/AdminPasswordModal'
 import { useKpiPolling, clearZoneCache } from '../hooks/useKpiPolling'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
+import { GAUGE_SET_GROUPS, STATUS_PANEL_GROUPS } from '../constants/actuatorCandidates'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
 import GridLayout from 'react-grid-layout/legacy'
 import 'react-grid-layout/css/styles.css'
@@ -50,21 +51,19 @@ function saveToStorage(key, value) {
 }
 
 const DEFAULT_LAYOUT = [
-  { i: 'w1', x: 0,  y: 0, w: 5,  h: 5, minW: 2, minH: 2 },
-  { i: 'w2', x: 5,  y: 0, w: 5,  h: 5, minW: 2, minH: 2 },
-  { i: 'w3', x: 10, y: 0, w: 5,  h: 5, minW: 2, minH: 2 },
-  { i: 'w4', x: 15, y: 0, w: 5,  h: 5, minW: 2, minH: 2 },
-  { i: 'w5', x: 0,  y: 5, w: 10, h: 5, minW: 2, minH: 2 },
-  { i: 'w6', x: 10, y: 5, w: 10, h: 5, minW: 2, minH: 2 },
+  { i: 'w1', x: 0,  y: 0, w: 4, h: 3, minW: 2, minH: 2 },
+  { i: 'w2', x: 4,  y: 0, w: 4, h: 3, minW: 2, minH: 2 },
+  { i: 'w3', x: 8,  y: 0, w: 4, h: 3, minW: 2, minH: 2 },
+  { i: 'w4', x: 12, y: 0, w: 4, h: 3, minW: 2, minH: 2 },
+  { i: 'w5', x: 16, y: 0, w: 4, h: 3, minW: 2, minH: 2 },
 ]
 
 const DEFAULT_WIDGETS = {
-  w1: { type: 'stat',  title: '내부 온도',  kpiId: 'xintemp1' },
-  w2: { type: 'stat',  title: '내부 습도',  kpiId: 'xinhum1' },
-  w3: { type: 'stat',  title: 'CO₂',       kpiId: 'xco2' },
-  w4: { type: 'stat',  title: '급액 EC',    kpiId: 'now_ec' },
-  w5: { type: 'chart', title: '환경 추이',  kpiId: null },
-  w6: { type: 'chart', title: '농가 현황',  kpiId: null },
+  w1: { type: 'chart-main', title: '내부 온도', kpiId: 'xintemp1'  },
+  w2: { type: 'chart-main', title: '내부 습도', kpiId: 'xinhum1'   },
+  w3: { type: 'chart-main', title: 'CO₂ 농도', kpiId: 'xco2'      },
+  w4: { type: 'chart-main', title: '급액 EC',   kpiId: 'now_ec'    },
+  w5: { type: 'chart-main', title: '함수율',    kpiId: 'water_con' },
 }
 
 // B: 그리드 오버레이 — 컬럼·행 가이드선
@@ -161,17 +160,47 @@ export default function DashboardPage() {
   const handleAddWidget = (widgetDef) => {
     const id   = `w${Date.now()}`
     const maxY = layout.reduce((m, l) => Math.max(m, l.y + l.h), 0)
-    setLayout(prev => [...prev, { i: id, x: 0, y: maxY, w: 5, h: 5, minW: 2, minH: 2 }])
+    const sizeMap = { 'chart-main': [4, 3], 'chart': [8, 4], 'gauge-set': [5, 4], 'status-panel': [5, 4] }
+    const [w, h] = sizeMap[widgetDef.type] ?? [5, 5]
+    setLayout(prev => [...prev, { i: id, x: 0, y: maxY, w, h, minW: 2, minH: 2 }])
     setWidgets(prev => ({ ...prev, [id]: widgetDef }))
     setPickerOpen(false)
   }
 
+  const handleConfigChange = useCallback((widgetId, partialConfig) => {
+    setWidgets(prev => {
+      const updated = { ...prev, [widgetId]: { ...prev[widgetId], ...partialConfig } }
+      saveToStorage(STORAGE_KEY_WIDGETS, updated)
+      return updated
+    })
+  }, [])
+
+  const handleTitleChange = useCallback((widgetId, newTitle) => {
+    setWidgets(prev => {
+      const updated = { ...prev, [widgetId]: { ...prev[widgetId], title: newTitle } }
+      saveToStorage(STORAGE_KEY_WIDGETS, updated)
+      return updated
+    })
+  }, [])
+
   const { dynamicCandidates, zoneCapabilities } = useCapabilities()
   const allCandidates = useMemo(() => [...KPI_CANDIDATES, ...dynamicCandidates], [dynamicCandidates])
+
+  // candidate 빠른 조회 맵
+  const candidateMap = useMemo(
+    () => Object.fromEntries(allCandidates.map(c => [c.id, c])),
+    [allCandidates]
+  )
 
   // 첫 번째 연결된 구역 ID 사용 (대시보드는 구역 탭 없음)
   const firstZoneId = useMemo(
     () => Object.keys(zoneCapabilities).find(id => zoneCapabilities[id]?.available?.length > 0) ?? null,
+    [zoneCapabilities]
+  )
+
+  // 전체 연결된 ID Set — WidgetPicker·Widget 양쪽에 전달
+  const allAvailableIds = useMemo(
+    () => new Set(Object.values(zoneCapabilities).flatMap(z => z.available ?? [])),
     [zoneCapabilities]
   )
 
@@ -184,6 +213,48 @@ export default function DashboardPage() {
   )
   const widgetKpiSlots = useKpiPolling(widgetSlotConfigs, firstZoneId, refreshKey)
   const kpiSlotMap = Object.fromEntries(widgetKpiSlots.map(s => [s.id, s]))
+
+  // 서브로우 secondary KPI 폴링 + chart overlay ID 포함
+  const secondarySlotConfigs = useMemo(() => {
+    const ids = new Set()
+    Object.values(widgets).forEach(w => {
+      const candidate = candidateMap[w.kpiId]
+      candidate?.subRows?.forEach(row => {
+        if (row.kpiId)  ids.add(row.kpiId)
+        if (row.kpiId2) ids.add(row.kpiId2)
+      })
+      // chart 위젯 오버레이 KPI
+      if (w.type === 'chart') {
+        w.overlayIds?.forEach(id => ids.add(id))
+      }
+    })
+    return [...ids].map(id => allCandidates.find(c => c.id === id) ?? { id })
+  }, [widgets, candidateMap, allCandidates])
+
+  const secondaryKpiSlots = useKpiPolling(secondarySlotConfigs, firstZoneId, refreshKey)
+  const secondarySlotMap  = Object.fromEntries(secondaryKpiSlots.map(s => [s.id, s]))
+
+  // 구동기 폴링 — gauge-set / status-panel 위젯이 쓰는 ID만 수집
+  const actuatorSlotConfigs = useMemo(() => {
+    const ids = new Set()
+    Object.values(widgets).forEach(w => {
+      if (w.type === 'gauge-set') {
+        GAUGE_SET_GROUPS.find(g => g.id === w.groupId)?.items
+          .forEach(item => ids.add(item.id.toLowerCase()))
+      }
+      if (w.type === 'status-panel') {
+        STATUS_PANEL_GROUPS.find(g => g.id === w.groupId)?.items
+          .forEach(item => {
+            ids.add(item.id.toLowerCase())
+            if (item.runId) ids.add(item.runId.toLowerCase())
+          })
+      }
+    })
+    return [...ids].map(id => ({ id }))
+  }, [widgets])
+
+  const actuatorKpiSlots = useKpiPolling(actuatorSlotConfigs, firstZoneId, refreshKey)
+  const actuatorSlotMap  = Object.fromEntries(actuatorKpiSlots.map(s => [s.id, s]))
 
   // C: 위젯별 현재 grid 크기 맵
   const sizeMap = Object.fromEntries(layout.map(l => [l.i, { w: l.w, h: l.h }]))
@@ -274,8 +345,16 @@ export default function DashboardPage() {
                 kpiSlot={kpiSlotMap[widgets[i]?.kpiId] ?? null}
                 editMode={editMode}
                 onRemove={() => setPendingRemoveId(i)}
-                gridSize={sizeMap[i]}          // C: 크기 배지용
+                gridSize={sizeMap[i]}
                 isResizing={isResizing}
+                candidate={candidateMap[widgets[i]?.kpiId] ?? null}
+                extraSlots={secondarySlotMap}
+                onTitleChange={(newTitle) => handleTitleChange(i, newTitle)}
+                defaultTitle={candidateMap[widgets[i]?.kpiId]?.title ?? null}
+                actuatorSlots={actuatorSlotMap}
+                allAvailableIds={allAvailableIds}
+                allCandidates={allCandidates}
+                onConfigChange={(partial) => handleConfigChange(i, partial)}
               />
             </div>
           ))}

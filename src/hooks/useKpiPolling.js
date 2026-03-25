@@ -24,8 +24,8 @@ export function clearZoneCache(zoneId) {
 // ── 스파크라인 이력 ────────────────────────────────────────────────────────────
 // 폴링마다 수신한 값을 누적 → 3시간치 보관 → 20포인트 다운샘플링 후 스파크라인 전달
 const _kpiHistory  = {}            // { [kpiId]: Array<{ value: number, ts: number }> }
-const HISTORY_MS   = 3 * 60 * 60_000  // 3시간
-const SPARK_POINTS = 20
+const HISTORY_MS   = 12 * 60 * 60_000 // 12시간
+const SPARK_POINTS = 80
 
 function _addHistory(id, value) {
   if (value === null || value === undefined) return
@@ -46,6 +46,19 @@ function _getSparkline(id) {
   return Array.from({ length: SPARK_POINTS }, (_, i) =>
     hist[Math.round(i * step)].value
   )
+}
+
+/** minutesAgo 분 전 값 — delta 계산용 */
+function _getPrevValue(id, minutesAgo) {
+  const hist = _kpiHistory[id]
+  if (!hist || hist.length < 2) return null
+  const targetTs = Date.now() - minutesAgo * 60_000
+  let closest = null, minDiff = Infinity
+  for (const p of hist) {
+    const diff = Math.abs(p.ts - targetTs)
+    if (diff < minDiff) { minDiff = diff; closest = p }
+  }
+  return closest?.value ?? null
 }
 
 /** 실제 API 응답 { "fields": [{ ...모든 필드 }] } → 정규화된 필드 맵 */
@@ -122,7 +135,9 @@ function buildSlot(cfg, raw, zoneAvailable = null) {
   const lastReceivedAt = raw?.lastReceivedAt
   const isAvailable    = !zoneAvailable || zoneAvailable.includes(cfg.id)
   const dataStatus     = resolveKpiStatus(cfg.id, value, lastReceivedAt, cfg.yMin, cfg.yMax, isAvailable)
-  return { ...cfg, value, data, dataStatus, lastReceivedAt }
+  const prev30         = _getPrevValue(cfg.id, 30)
+  const prev60         = _getPrevValue(cfg.id, 60)
+  return { ...cfg, value, data, dataStatus, lastReceivedAt, prev30, prev60 }
 }
 
 /**
