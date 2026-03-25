@@ -60,6 +60,27 @@ export function CapabilitiesProvider({ children }) {
         zoneCaps[zoneId] = { available: fields, loading: false, lastFetched: new Date(), error: null }
       }
       setZoneCapabilities(zoneCaps)
+
+      // needsRediscover가 true인 구역: 백그라운드에서 실제 API 재호출하여 복구
+      for (const [zoneId, needed] of Object.entries(data.needsRediscover ?? {})) {
+        if (!needed) continue
+        fetch(`/api/admin/zone/${zoneId}/rediscover`, { method: 'POST' })
+          .then(r => r.json())
+          .then(result => {
+            if (!result.success) return
+            // zoneCapabilities 갱신 (WidgetPicker, useKpiPolling이 즉시 반영)
+            setZoneCapabilities(prev => ({
+              ...prev,
+              [zoneId]: { available: result.fields, loading: false, lastFetched: new Date(), error: null },
+            }))
+            // capabilities.available 동기화 (dynamicCandidates 재계산용)
+            setCapabilities(prev => ({
+              ...prev,
+              available: { ...(prev?.available ?? {}), [zoneId]: result.fields },
+            }))
+          })
+          .catch(() => {})  // 실패 시 기존 상태 유지 (degraded mode)
+      }
     } catch (e) {
       console.error('[CapabilitiesContext] /api/capabilities 호출 실패:', e)
     } finally {
@@ -80,22 +101,25 @@ export function CapabilitiesProvider({ children }) {
       [zoneId]: { ...(prev[zoneId] ?? {}), loading: true, error: null },
     }))
     try {
-      const res  = await fetch('/api/capabilities')
+      const res  = await fetch(`/api/admin/zone/${zoneId}/rediscover`, { method: 'POST' })
       const data = await res.json()
-      // zone_config에 저장된 zoneId 기준으로 필드 추출
-      // (서버가 zone_config.json을 읽어 구역별 available을 반환)
-      const available = data.available?.[zoneId] ?? []
+      if (!data.success) throw new Error('필드 탐색 결과 없음')
+
+      const available = data.fields
       setZoneCapabilities(prev => ({
         ...prev,
         [zoneId]: { available, loading: false, lastFetched: new Date(), error: null },
       }))
-      setCapabilities(data)
+      setCapabilities(prev => ({
+        ...prev,
+        available: { ...(prev?.available ?? {}), [zoneId]: available },
+      }))
       return { success: true, fields: available }
     } catch (e) {
       const msg = e.message ?? '알 수 없는 오류'
       setZoneCapabilities(prev => ({
         ...prev,
-        [zoneId]: { available: [], loading: false, lastFetched: null, error: msg },
+        [zoneId]: { ...(prev[zoneId] ?? {}), loading: false, error: msg },
       }))
       return { success: false, error: msg }
     }

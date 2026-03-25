@@ -130,15 +130,18 @@ export default function FarmSettingsPage() {
   const handleReconnect = async (zone) => {
     const result = await refetchZone(zone)
     if (result.success) {
-      // capabilities 재확인 성공 → apiConfig 업데이트
-      setConfig(prev => ({
-        ...prev,
-        zones: prev.zones.map(z =>
-          z.id === zone.id
-            ? { ...z, apiConfig: { ...z.apiConfig, status: 'connected', lastConnected: new Date().toISOString(), availableFields: result.fields } }
-            : z
-        ),
-      }))
+      setConfig(prev => {
+        const next = {
+          ...prev,
+          zones: prev.zones.map(z =>
+            z.id === zone.id
+              ? { ...z, apiConfig: { ...z.apiConfig, status: 'connected', lastConnected: new Date().toISOString(), availableFields: result.fields } }
+              : z
+          ),
+        }
+        saveFarmConfig(next)   // 재연결 결과를 localStorage에 영구 저장
+        return next
+      })
     }
   }
 
