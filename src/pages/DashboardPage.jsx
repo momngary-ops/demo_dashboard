@@ -173,6 +173,7 @@ export default function DashboardPage() {
   const [containerWidth, setContainerWidth] = useState(
     () => Math.max(320, window.innerWidth - (window.innerWidth < 768 ? 0 : 220))
   )
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth)
 
   // 사이드바 토글 대응 — ResizeObserver로 실시간 감지
   const containerRef = useCallback(node => {
@@ -181,6 +182,13 @@ export default function DashboardPage() {
       setContainerWidth(entry.contentRect.width)
     })
     ro.observe(node)
+  }, [])
+
+  // 윈도우 폭 추적 (브레이크포인트 기준)
+  useEffect(() => {
+    const fn = () => setWindowWidth(window.innerWidth)
+    window.addEventListener('resize', fn)
+    return () => window.removeEventListener('resize', fn)
   }, [])
 
   // 마운트 시 서버 설정 로드 (localStorage 우선 표시 후 서버값으로 교체)
@@ -399,7 +407,9 @@ export default function DashboardPage() {
 
         <ResponsiveGridLayout
           layouts={layouts}
-          breakpoints={BREAKPOINTS}
+          breakpoints={Object.fromEntries(
+            Object.entries(BREAKPOINTS).map(([k, v]) => [k, Math.max(0, v - (windowWidth - containerWidth))])
+          )}
           cols={RESPONSIVE_COLS}
           rowHeight={ROW_H}
           width={containerWidth}
