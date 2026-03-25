@@ -1,22 +1,58 @@
-import { X } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { X, ChevronDown, ChevronRight } from 'lucide-react'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
+import { useKpiPolling } from '../hooks/useKpiPolling'
 import './WidgetPicker.css'
 
-const WIDGET_TYPES = [
-  { type: 'stat',  label: '수치 카드',   desc: '단일 센서값 표시 (온도, 습도 등)' },
-  { type: 'chart', label: '차트',        desc: '시계열 데이터 시각화' },
-]
+function fmtVal(value, unit) {
+  if (value === null || value === undefined) return null
+  const num = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(num)) return null
+  const str = num >= 10000 ? num.toLocaleString() : Number.isInteger(num) ? String(num) : num.toFixed(1)
+  return unit ? `${str} ${unit}` : str
+}
+
+function KpiItem({ c, avail, liveMap, onAdd }) {
+  const live = liveMap[c.id]
+  const val = (avail && live?.value != null) ? fmtVal(live.value, c.unit) : null
+  return (
+    <button
+      className={`picker__item ${!avail ? 'picker__item--noapi' : ''}`}
+      onClick={() => avail && onAdd({ type: 'stat', title: c.title, kpiId: c.id, unit: c.unit })}
+      title={!avail ? '미연결' : c.title}
+    >
+      {c.icon} {c.title}
+      {val !== null
+        ? <span className="picker__item-val">{val}</span>
+        : !avail && <span className="picker__item-badge">미연결</span>
+      }
+    </button>
+  )
+}
 
 export default function WidgetPicker({ onAdd, onClose }) {
   const { dynamicCandidates, zoneCapabilities } = useCapabilities()
-  const allCandidates = [...KPI_CANDIDATES, ...dynamicCandidates]
-  const categories = [...new Set(allCandidates.map(c => c.category))]
+  const [expandDynamic, setExpandDynamic] = useState(false)
 
-  const allAvailableIds = new Set(
+  const allAvailableIds = useMemo(() => new Set(
     Object.values(zoneCapabilities).flatMap(z => z.available ?? [])
-  )
+  ), [zoneCapabilities])
+
   const isAvailable = (id) => allAvailableIds.size > 0 && allAvailableIds.has(id)
+
+  // 연결된 항목만 폴링 (라이브 값 미리보기)
+  const availableCandidates = useMemo(() =>
+    [...KPI_CANDIDATES, ...dynamicCandidates].filter(c => allAvailableIds.has(c.id)),
+    [allAvailableIds, dynamicCandidates]
+  )
+  const liveSlots = useKpiPolling(availableCandidates)
+  const liveMap = useMemo(() =>
+    Object.fromEntries(liveSlots.map(s => [s.id, s])),
+    [liveSlots]
+  )
+
+  const staticCategories = [...new Set(KPI_CANDIDATES.map(c => c.category))]
 
   return (
     <div className="picker-overlay" onClick={onClose}>
@@ -26,38 +62,60 @@ export default function WidgetPicker({ onAdd, onClose }) {
           <button className="picker__close" onClick={onClose}><X size={16} /></button>
         </div>
         <div className="picker__body">
-          {WIDGET_TYPES.map(wt => (
-            <div key={wt.type} className="picker__section">
-              <div className="picker__section-title">{wt.label}</div>
-              <p className="picker__section-desc">{wt.desc}</p>
-              {wt.type === 'stat' ? (
-                categories.map(cat => (
-                  <div key={cat}>
-                    <div className="picker__cat-label">{cat}</div>
-                    <div className="picker__grid">
-                      {allCandidates.filter(c => c.category === cat).map(c => (
-                        <button
-                          key={c.id}
-                          className={`picker__item ${!isAvailable(c.id) ? 'picker__item--noapi' : ''}`}
-                          onClick={() => isAvailable(c.id) && onAdd({ type: wt.type, title: c.title, kpiId: c.id, unit: c.unit })}
-                          title={!isAvailable(c.id) ? '미연결' : undefined}
-                        >
-                          {c.icon} {c.title}
-                          {!isAvailable(c.id) && <span className="picker__item-badge">미연결</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))
-              ) : (
+
+          {/* 수치 카드 */}
+          <div className="picker__section">
+            <div className="picker__section-title">수치 카드</div>
+            <p className="picker__section-desc">단일 센서값 표시 (온도, 습도 등)</p>
+
+            {staticCategories.map(cat => (
+              <div key={cat}>
+                <div className="picker__cat-label">{cat}</div>
                 <div className="picker__grid">
-                  <button className="picker__item picker__item--noapi" disabled>
-                    차트 (준비 중)
-                  </button>
+                  {KPI_CANDIDATES.filter(c => c.category === cat).map(c => (
+                    <KpiItem key={c.id} c={c} avail={isAvailable(c.id)} liveMap={liveMap} onAdd={onAdd} />
+                  ))}
                 </div>
-              )}
+              </div>
+            ))}
+
+            {/* 확장 센서 — 접기/펼치기 */}
+            {dynamicCandidates.length > 0 && (
+              <div className="picker__expand-wrap">
+                <button
+                  className="picker__expand-toggle"
+                  onClick={() => setExpandDynamic(v => !v)}
+                >
+                  {expandDynamic ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                  확장 센서 {dynamicCandidates.length}개
+                  {dynamicCandidates.filter(c => isAvailable(c.id)).length > 0 && (
+                    <span className="picker__expand-count">
+                      {dynamicCandidates.filter(c => isAvailable(c.id)).length}개 연결됨
+                    </span>
+                  )}
+                </button>
+                {expandDynamic && (
+                  <div className="picker__grid picker__grid--expand">
+                    {dynamicCandidates.map(c => (
+                      <KpiItem key={c.id} c={c} avail={isAvailable(c.id)} liveMap={liveMap} onAdd={onAdd} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 차트 */}
+          <div className="picker__section">
+            <div className="picker__section-title">차트</div>
+            <p className="picker__section-desc">시계열 데이터 시각화</p>
+            <div className="picker__grid">
+              <button className="picker__item picker__item--noapi" disabled>
+                차트 (준비 중)
+              </button>
             </div>
-          ))}
+          </div>
+
         </div>
       </div>
     </div>
