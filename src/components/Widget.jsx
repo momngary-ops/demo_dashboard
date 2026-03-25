@@ -62,6 +62,7 @@ function SparklineSVG({ data }) {
       className="cm-sparkline__svg"
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
+      overflow="hidden"
     >
       <defs>
         <linearGradient id="spk-grad" x1="0" y1="0" x2="0" y2="1">
@@ -78,7 +79,8 @@ function SparklineSVG({ data }) {
       </>}
       {areaD && <path d={areaD} fill="url(#spk-grad)" />}
       <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5"
-            strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
+            strokeLinecap="round" strokeLinejoin="round" opacity="0.9"
+            vectorEffect="non-scaling-stroke" />
       <circle cx={last.x} cy={last.y} r="3" fill="currentColor" opacity="0.95" />
     </svg>
   )

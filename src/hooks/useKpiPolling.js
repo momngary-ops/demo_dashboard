@@ -61,14 +61,25 @@ function _getPrevValue(id, minutesAgo) {
   return closest?.value ?? null
 }
 
-/** 실제 API 응답 { "fields": [{ ...모든 필드 }] } → 정규화된 필드 맵 */
+/** 실제 API 응답 → 정규화된 필드 맵
+ *  지원 구조:
+ *    { fields: [{ ... }] }   — 표준 (제어기/양액기 공통)
+ *    { data:   [{ ... }] }   — 일부 양액기 응답
+ *    { ... }                 — 플랫 객체
+ */
 function normalizeZoneFields(json) {
-  const raw = json?.fields?.[0] ?? {}
+  let raw = {}
+  if (Array.isArray(json?.fields) && typeof json.fields[0] === 'object' && json.fields[0] !== null) {
+    raw = json.fields[0]
+  } else if (Array.isArray(json?.data) && typeof json.data[0] === 'object' && json.data[0] !== null) {
+    raw = json.data[0]
+  } else if (json && typeof json === 'object' && !Array.isArray(json)) {
+    raw = json
+  }
   const fields = {}
   for (const [k, v] of Object.entries(raw)) {
     const key = k.trim().toLowerCase()
-    // 타임스탬프 객체 및 빈값 제외
-    if (key === 'save_dt' || key === 'xdatetime' || key === 'xdatetime') continue
+    if (key === 'save_dt' || key === 'xdatetime') continue
     if (v === null || v === undefined || v === '') continue
     if (typeof v === 'object') continue  // { date, timezone_type, ... } 등 중첩 객체
     const num = typeof v === 'string' ? parseFloat(v) : v
@@ -87,15 +98,27 @@ async function fetchZoneData(zoneId) {
 
   _zonePending[zoneId] = (async () => {
     try {
+      const safeFetch = (url) =>
+        fetch(url, { signal: AbortSignal.timeout(10_000) })
+          .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`)
+            return r.json()
+          })
       const [ctrlRes, nutRes] = await Promise.allSettled([
-        fetch(`/api/zone/${zoneId}/controller`, { signal: AbortSignal.timeout(10_000) }).then(r => r.json()),
-        fetch(`/api/zone/${zoneId}/nutrient`,   { signal: AbortSignal.timeout(10_000) }).then(r => r.json()),
+        safeFetch(`/api/zone/${zoneId}/controller`),
+        safeFetch(`/api/zone/${zoneId}/nutrient`),
       ])
+      if (ctrlRes.status === 'rejected') console.warn(`[KPI] 제어기 API 실패 (zone=${zoneId}):`, ctrlRes.reason)
+      if (nutRes.status  === 'rejected') console.warn(`[KPI] 양액기 API 실패 (zone=${zoneId}):`, nutRes.reason)
       // 제어기 필드 + 양액기 필드 머지 (양액기가 우선 — EC/pH 등)
-      const fields = {
-        ...(ctrlRes.status === 'fulfilled' ? normalizeZoneFields(ctrlRes.value) : {}),
-        ...(nutRes.status  === 'fulfilled' ? normalizeZoneFields(nutRes.value)  : {}),
+      const ctrlFields = ctrlRes.status === 'fulfilled' ? normalizeZoneFields(ctrlRes.value) : {}
+      const nutFields  = nutRes.status  === 'fulfilled' ? normalizeZoneFields(nutRes.value)  : {}
+      console.debug(`[KPI] zone=${zoneId} 제어기 keys:`, Object.keys(ctrlFields))
+      console.debug(`[KPI] zone=${zoneId} 양액기 keys:`, Object.keys(nutFields))
+      if (nutRes.status === 'fulfilled' && Object.keys(nutFields).length === 0) {
+        console.warn(`[KPI] 양액기 응답 파싱 실패 — 원본:`, nutRes.value)
       }
+      const fields = { ...ctrlFields, ...nutFields }
       _zoneCache[zoneId] = { fields, ts: now, lastReceivedAt: new Date().toISOString() }
       return _zoneCache[zoneId]
     } finally {
