@@ -64,9 +64,10 @@ function ZoneRow({ zone, index, zoneCapState, onEdit, onDelete, onReconnect }) {
         <div className="fsp__zone-actions">
           {status === 'connected'
             ? (
-              <button className="fsp-btn" onClick={onReconnect} disabled={capLoading}>
-                재연결
-              </button>
+              <>
+                <button className="fsp-btn" onClick={onEdit}>수정</button>
+                <button className="fsp-btn" onClick={onReconnect} disabled={capLoading}>재연결</button>
+              </>
             ) : (
               <button className="fsp-btn fsp-btn--primary" onClick={onEdit}>
                 API 연동
