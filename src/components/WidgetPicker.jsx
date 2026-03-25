@@ -7,6 +7,27 @@ import { useCapabilities } from '../contexts/CapabilitiesContext'
 import { useKpiPolling } from '../hooks/useKpiPolling'
 import './WidgetPicker.css'
 
+function CategorySection({ title, items, isAvailable, liveMap, onAdd }) {
+  const [expanded, setExpanded] = useState(false)
+  const connectedCount = items.filter(c => isAvailable(c.id)).length
+  return (
+    <div className="picker__section">
+      <button className="picker__expand-toggle" onClick={() => setExpanded(v => !v)}>
+        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        {title}
+        <span className="picker__expand-count">{connectedCount}/{items.length} 연결</span>
+      </button>
+      {expanded && (
+        <div className="picker__grid picker__grid--expand">
+          {items.map(c => (
+            <KpiItem key={c.id} c={c} avail={isAvailable(c.id)} liveMap={liveMap} onAdd={onAdd} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function fmtVal(value, unit) {
   if (value === null || value === undefined) return null
   const num = typeof value === 'string' ? parseFloat(value) : value
@@ -53,6 +74,27 @@ export default function WidgetPicker({ onAdd, onClose }) {
     Object.fromEntries(liveSlots.map(s => [s.id, s])),
     [liveSlots]
   )
+
+  // KPI_CANDIDATES를 카테고리별로 그룹핑 (subrow 전용 항목 제외)
+  const kpiByCat = useMemo(() => {
+    const map = {}
+    KPI_CANDIDATES.forEach(c => {
+      if (!c.icon) return
+      if (!map[c.category]) map[c.category] = []
+      map[c.category].push(c)
+    })
+    return map
+  }, [])
+
+  function handleKpiAdd(c) {
+    if (!isAvailable(c.id)) return
+    onAdd({
+      type: c.cardType === 'chart-main' ? 'chart-main' : 'stat',
+      title: c.title,
+      kpiId: c.id,
+      unit: c.unit,
+    })
+  }
 
   return (
     <div className="picker-overlay" onClick={onClose}>
@@ -101,6 +143,18 @@ export default function WidgetPicker({ onAdd, onClose }) {
                 })}
               </div>
             </div>
+          ))}
+
+          {/* ── KPI 센서 지표 (카테고리별, 접기/펼치기) ── */}
+          {Object.entries(kpiByCat).map(([cat, items]) => (
+            <CategorySection
+              key={cat}
+              title={cat}
+              items={items}
+              isAvailable={isAvailable}
+              liveMap={liveMap}
+              onAdd={handleKpiAdd}
+            />
           ))}
 
           {/* 확장 센서 (동적) */}

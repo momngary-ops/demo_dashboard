@@ -334,27 +334,53 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
 }
 
 // ─── ComputedWidget ──────────────────────────────────────────────────────────
+function svp(t) {
+  return 0.6108 * Math.exp(17.27 * t / (t + 237.3))
+}
+
+function calcComputed(formula, val1, val2, constant) {
+  if (formula === 'subtract')
+    return (val1 !== null && val2 !== null) ? +(val1 - val2).toFixed(2) : null
+  if (formula === 'multiply_const')
+    return (val1 !== null) ? +(val1 * (constant ?? 1)).toFixed(1) : null
+  if (formula === 'vpd') {
+    if (val1 === null || val2 === null) return null
+    return +((svp(val1) * (1 - val2 / 100)).toFixed(2))
+  }
+  return null
+}
+
+function buildSparkData(formula, data1, data2, val2, constant) {
+  if (formula === 'subtract' && data1.length >= 2 && data2.length >= 2)
+    return data1.map((v, i) => +(v - (data2[i] ?? val2 ?? 0)).toFixed(2))
+  if (formula === 'multiply_const' && data1.length >= 2)
+    return data1.map(v => +(v * (constant ?? 1)).toFixed(1))
+  if (formula === 'vpd' && data1.length >= 2 && data2.length >= 2)
+    return data1.map((t, i) => {
+      const rh = data2[i] ?? val2 ?? 0
+      return +((svp(t) * (1 - rh / 100)).toFixed(2))
+    })
+  return []
+}
+
 function ComputedWidget({ config, kpiSlot, kpiSlot2, gridSize }) {
   const val1   = kpiSlot?.value  ?? null
   const val2   = kpiSlot2?.value ?? null
   const unit   = config.unit ?? '°C'
+  const formula = config.formula ?? 'subtract'
 
-  const computed = (val1 !== null && val2 !== null)
-    ? +(val1 - val2).toFixed(1) : null
+  const computed = calcComputed(formula, val1, val2, config.constant)
 
   const status1   = kpiSlot?.dataStatus  ?? 'LOADING'
-  const status2   = kpiSlot2?.dataStatus ?? 'LOADING'
+  const status2   = config.kpiId2 ? (kpiSlot2?.dataStatus ?? 'LOADING') : 'OK'
   const isLoading = status1 === 'LOADING' || status2 === 'LOADING'
   const isError   = (ERROR_STATUSES.has(status1) && status1 !== 'LOADING') ||
-                    (ERROR_STATUSES.has(status2) && status2 !== 'LOADING')
+                    (config.kpiId2 && ERROR_STATUSES.has(status2) && status2 !== 'LOADING')
   const isCompact = gridSize && (gridSize.w < 3 || gridSize.h < 2)
 
-  // 차이 스파크라인 — 두 배열 원소별 뺄셈
   const data1 = kpiSlot?.data  ?? []
   const data2 = kpiSlot2?.data ?? []
-  const sparkData = data1.length >= 2 && data2.length >= 2
-    ? data1.map((v, i) => +(v - (data2[i] ?? val2 ?? 0)).toFixed(1))
-    : []
+  const sparkData = buildSparkData(formula, data1, data2, val2, config.constant)
 
   if (isLoading) {
     return (
@@ -386,10 +412,14 @@ function ComputedWidget({ config, kpiSlot, kpiSlot2, gridSize }) {
           <span className="cm-value">{fmt(computed)}</span>
           <span className="cm-unit">{unit}</span>
         </div>
-        <div className="cm-secondary-row">
-          <span className="cm-sec-label">난방설정 / 외부온도</span>
-          <span className="cm-sec-val">{fmt(val1)} / {fmt(val2)} {unit}</span>
-        </div>
+        {config.description && (
+          <div className="cm-secondary-row">
+            <span className="cm-sec-label">{config.description}</span>
+            {formula !== 'multiply_const' && val1 !== null && val2 !== null && (
+              <span className="cm-sec-val">{fmt(val1)} / {fmt(val2)}</span>
+            )}
+          </div>
+        )}
       </div>
       {!isCompact && sparkData.length >= 2 && (
         <div className="cm-spark-area">
