@@ -14,7 +14,7 @@
  *     (현재: DEFAULT_LAYOUT / DEFAULT_WIDGETS 클라이언트 고정값)
  *   - 구성원별 개인 커스터마이징 필요 시 별도 [개인 대시보드] 페이지로 분리
  */
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import AdminPasswordModal from '../components/AdminPasswordModal'
 import { useKpiPolling, clearZoneCache } from '../hooks/useKpiPolling'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
@@ -26,6 +26,7 @@ import 'react-resizable/css/styles.css'
 import Widget from '../components/Widget'
 import WidgetPicker from '../components/WidgetPicker'
 import TopBanner from '../components/TopBanner/TopBanner'
+import { fetchSettings, saveSettings } from '../api/settingsApi'
 import './DashboardPage.css'
 
 // 반응형 브레이크포인트 & 컬럼 수
@@ -180,6 +181,18 @@ export default function DashboardPage() {
       setContainerWidth(entry.contentRect.width)
     })
     ro.observe(node)
+  }, [])
+
+  // 마운트 시 서버 설정 로드 (localStorage 우선 표시 후 서버값으로 교체)
+  useEffect(() => {
+    fetchSettings().then(data => {
+      if (!data) return
+      if (data.layouts) {
+        setLayouts(data.layouts)
+        setCurrentLayout(data.layouts.xl ?? DEFAULT_LAYOUTS.xl)
+      }
+      if (data.widgets) setWidgets(data.widgets)
+    })
   }, [])
 
   const handleLayoutChange = (cur, all) => {
@@ -352,6 +365,7 @@ export default function DashboardPage() {
                   if (editMode) {
                     saveToStorage(STORAGE_KEY_LAYOUTS, layouts)
                     saveToStorage(STORAGE_KEY_WIDGETS, widgets)
+                    saveSettings({ layouts, widgets })
                   }
                   setEditMode(v => !v)
                 }}

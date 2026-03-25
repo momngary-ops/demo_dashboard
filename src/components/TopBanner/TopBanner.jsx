@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { useWeatherPolling } from '../../hooks/useWeatherPolling'
 import { useKpiPolling, prefetchZoneData } from '../../hooks/useKpiPolling'
@@ -11,6 +11,7 @@ import ZoneTabs             from './ZoneTabs'
 import FixedMetricCard      from './FixedMetricCard'
 import VariableMetricCard   from './VariableMetricCard'
 import KpiSelectorModal     from './KpiSelectorModal'
+import { fetchSettings, saveSettings } from '../../api/settingsApi'
 import './TopBanner.css'
 
 function fmtNow() {
@@ -41,6 +42,13 @@ export default function TopBanner({ compact = false, onToggleCompact }) {
     return DEFAULT_SLOT_CONFIGS
   })
   const [pickerOpen,   setPickerOpen]   = useState(false)
+
+  // 마운트 시 서버 설정 로드
+  useEffect(() => {
+    fetchSettings().then(data => {
+      if (data?.bannerSlots) setSlotConfigs(data.bannerSlots)
+    })
+  }, [])
 
   const activeZoneId = farmConfig.zones[activeZone]?.id ?? null
 
@@ -128,6 +136,7 @@ export default function TopBanner({ compact = false, onToggleCompact }) {
           onSlotsChange={(next) => {
             setSlotConfigs(next)
             try { localStorage.setItem(STORAGE_KEY_BANNER_SLOTS, JSON.stringify(next)) } catch { /* 무시 */ }
+            saveSettings({ bannerSlots: next })
           }}
           onClose={() => setPickerOpen(false)}
         />
