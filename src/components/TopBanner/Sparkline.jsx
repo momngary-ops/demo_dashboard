@@ -22,8 +22,10 @@ export default function Sparkline({ data, yMin, yMax, stale = false }) {
   const max = current + amplitude
   const range = max - min
 
-  // 상하 10% 패딩 확보
-  const scaleY = v => H - ((v - min) / range) * H * 0.8 + H * 0.1
+  // 상하 10% 패딩 확보 — 값 범위를 [PAD, H-PAD] 안에 매핑
+  const PAD = H * 0.1
+  const drawH = H - PAD * 2
+  const scaleY = v => PAD + drawH * (1 - (v - min) / range)
   const scaleX = i => (i / (data.length - 1)) * W
 
   // Catmull-Rom → cubic bezier 변환으로 부드러운 곡선 생성
@@ -50,15 +52,17 @@ export default function Sparkline({ data, yMin, yMax, stale = false }) {
     <svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="none"
+      overflow="hidden"
       style={{ width: '100%', height: '100%', opacity: stale ? 0.4 : 0.9 }}
     >
       <path
         d={smoothPath(pts)}
         fill="none"
         stroke="#ffffff"
-        strokeWidth="1.8"
+        strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
       />
     </svg>
   )
