@@ -10,6 +10,12 @@ const _zoneCache   = {}  // { [zoneId]: { fields: {}, ts: number, lastReceivedAt
 const _zonePending = {}  // { [zoneId]: Promise }
 const CACHE_TTL    = 28_000  // 28초 (폴링 30초보다 약간 짧게)
 
+/** 구역 데이터 사전 로드 — 구역 탭 hover 시 호출해 캐시 워밍 */
+export function prefetchZoneData(zoneId) {
+  if (!zoneId) return
+  fetchZoneData(zoneId).catch(() => {})
+}
+
 /** 구역 캐시 강제 무효화 — 구역 설정 변경 후 즉시 재조회 필요할 때 호출 */
 export function clearZoneCache(zoneId) {
   if (zoneId) {
@@ -194,8 +200,14 @@ export function useKpiPolling(slotConfigs, zoneId = null, refreshKey = 0) {
   const [slots, setSlots] = useState(() => buildSlots(slotConfigs))
 
   const configKey = slotConfigs.map(c => c.id ?? 'null').join(',') + '|' + refreshKey
+
+  // 슬롯 구성 변경 시에만 LOADING 초기화 (구역 전환 시엔 이전 값 유지)
   useEffect(() => {
     setSlots(buildSlots(slotConfigs))
+  }, [configKey]) // eslint-disable-line
+
+  // 구역/구성 변경 시 즉시 fetch + 폴링
+  useEffect(() => {
     const load = () =>
       Promise.all(slotConfigs.map(cfg => fetchKpi(cfg, effectiveZoneId).catch(() => null)))
         .then(results => setSlots(

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { useWeatherPolling } from '../../hooks/useWeatherPolling'
-import { useKpiPolling }     from '../../hooks/useKpiPolling'
+import { useKpiPolling, prefetchZoneData } from '../../hooks/useKpiPolling'
 import { DEFAULT_SLOT_CONFIGS } from '../../constants/kpiCandidates'
 import { loadFarmConfig } from '../../constants/farmSchema'
 
@@ -60,7 +60,7 @@ export default function TopBanner({ compact = false, onToggleCompact }) {
       <div className="topbanner__content">
         {/* 구역 탭 행 */}
         <div className="topbanner__zone-row">
-          <ZoneTabs zones={farmConfig.zones} activeZone={activeZone} onZoneChange={setActiveZone} />
+          <ZoneTabs zones={farmConfig.zones} activeZone={activeZone} onZoneChange={setActiveZone} onZoneHover={prefetchZoneData} />
         </div>
 
         {/* 요약 바 — compact 상태일 때 표시 */}
