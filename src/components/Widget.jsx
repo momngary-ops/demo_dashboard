@@ -5,6 +5,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
 import { GAUGE_SET_GROUPS, STATUS_PANEL_GROUPS } from '../constants/actuatorCandidates'
+import { useGuideline } from '../contexts/GuidelineContext'
 import './Widget.css'
 
 const ERROR_STATUSES = new Set(['NULL_DATA', 'SENSOR_FAULT', 'API_TIMEOUT', 'NO_API', 'SENSOR_LOST'])
@@ -18,7 +19,7 @@ function fmt(v) {
 
 // ─── SparklineSVG ────────────────────────────────────────────────────────────
 // 색상은 CSS의 currentColor / var(--accent) 사용 — 임의 색상 prop 없음
-function SparklineSVG({ data }) {
+function SparklineSVG({ data, bandMin, bandMax }) {
   if (!data || data.length < 2) return null
 
   const W = 200, H = 60, PAD = 6
@@ -28,10 +29,17 @@ function SparklineSVG({ data }) {
   const isFlat = range === 0
   const pts = data.length
 
+  // 가이드라인 밴드가 있을 때 Y 스케일을 데이터+밴드 전체로 확장
+  const yLo = (bandMin !== undefined && bandMax !== undefined && !isFlat)
+    ? Math.min(min, bandMin) : min
+  const yHi = (bandMin !== undefined && bandMax !== undefined && !isFlat)
+    ? Math.max(max, bandMax) : max
+  const yRange = yHi - yLo
+
   // flat 데이터: 수직 중앙 / 범위 있는 데이터: 정규화
   const toY = (v) => isFlat
     ? H / 2
-    : PAD + (1 - (v - min) / range) * (H - PAD * 2)
+    : PAD + (1 - (v - yLo) / (yRange || 1)) * (H - PAD * 2)
 
   const points = data.map((v, i) => ({
     x: PAD + (i / (pts - 1)) * (W - PAD * 2),
@@ -77,6 +85,22 @@ function SparklineSVG({ data }) {
         <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD}
               stroke="currentColor" strokeWidth="0.7" strokeDasharray="4 3" opacity="0.4" />
       </>}
+      {/* 가이드라인 밴드 */}
+      {bandMin !== undefined && bandMax !== undefined && !isFlat && (() => {
+        const by1 = toY(bandMax)
+        const by2 = toY(bandMin)
+        const bh  = Math.abs(by2 - by1)
+        return bh > 0 ? (
+          <rect
+            x={PAD} y={Math.min(by1, by2)}
+            width={W - PAD * 2} height={bh}
+            fill="rgba(74,222,128,0.12)"
+            stroke="rgba(74,222,128,0.4)"
+            strokeWidth="0.8"
+            strokeDasharray="4 3"
+          />
+        ) : null
+      })()}
       {areaD && <path d={areaD} fill="url(#spk-grad)" />}
       <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5"
             strokeLinecap="round" strokeLinejoin="round" opacity="0.9"
@@ -181,6 +205,21 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
   const status = kpiSlot?.dataStatus ?? 'LOADING'
   const data   = kpiSlot?.data ?? []
   const unit   = kpiSlot?.unit ?? config.unit ?? candidate?.unit ?? ''
+
+  // 가이드라인 밴드
+  const { getCurrent } = useGuideline() ?? {}
+  const gl = getCurrent?.()
+  let bandMin, bandMax
+  if (gl) {
+    const kid = config.kpiId ?? candidate?.id
+    if (kid === 'xintemp1') { bandMin = gl.temp_min; bandMax = gl.temp_max }
+    if (kid === 'xinhum1')  { bandMin = gl.hum_min;  bandMax = gl.hum_max  }
+    if (kid === 'xco2') {
+      const dev = 0.1
+      bandMin = gl.co2 * (1 - dev)
+      bandMax = gl.co2 * (1 + dev)
+    }
+  }
 
   const isLoading = status === 'LOADING'
   const isError   = ERROR_STATUSES.has(status)
@@ -317,7 +356,7 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
         const hasRange = dMax !== dMin
         return (
           <div className="cm-spark-area">
-            <SparklineSVG data={data} />
+            <SparklineSVG data={data} bandMin={bandMin} bandMax={bandMax} />
             {hasRange && <>
               <span className="cm-spark-label cm-spark-label--max">
                 {fmt(dMax)}{unit && ` ${unit}`}

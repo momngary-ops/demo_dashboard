@@ -1,0 +1,195 @@
+.gl-page {
+  padding: 24px;
+  max-width: 900px;
+  margin: 0 auto;
+  color: #c8d8e8;
+}
+
+.gl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.gl-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #e8f0f8;
+  margin: 0;
+}
+
+.gl-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.gl-btn {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+
+.gl-btn--outline {
+  background: transparent;
+  border: 1px solid #3a4f62;
+  color: #8899aa;
+}
+.gl-btn--outline:hover { background: #1e2f3e; }
+
+.gl-btn--primary {
+  background: #2563eb;
+  color: #fff;
+}
+.gl-btn--primary:hover { background: #1d4ed8; }
+.gl-btn--primary:disabled { opacity: 0.6; cursor: default; }
+
+/* 탭 */
+.gl-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.gl-tab {
+  padding: 6px 20px;
+  border-radius: 6px 6px 0 0;
+  border: none;
+  background: #1a2a38;
+  color: #6688aa;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.gl-tab--active {
+  background: #223344;
+  color: #e0ecf8;
+}
+
+.gl-month-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.gl-month-tab {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #2a3a4a;
+  background: transparent;
+  color: #6688aa;
+  font-size: 12px;
+  cursor: pointer;
+}
+.gl-month-tab--active {
+  background: #2a4a6a;
+  color: #c8e0f8;
+  border-color: #3a6a9a;
+}
+
+/* 차트 */
+.gl-chart-wrap {
+  background: #111e2a;
+  border-radius: 8px;
+  padding: 12px 8px;
+  margin-bottom: 16px;
+}
+
+/* 테이블 */
+.gl-table-wrap {
+  max-height: 360px;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid #1e2f3e;
+  margin-bottom: 24px;
+}
+
+.gl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.gl-table th {
+  position: sticky;
+  top: 0;
+  background: #1a2a38;
+  padding: 8px 12px;
+  text-align: left;
+  color: #8899aa;
+  font-weight: 500;
+  border-bottom: 1px solid #2a3a4a;
+}
+
+.gl-table td {
+  padding: 4px 12px;
+  border-bottom: 1px solid #1a2a38;
+}
+
+.gl-table tr:hover td { background: #111e2a; }
+
+/* 입력 */
+.gl-input {
+  background: #0d1a25;
+  border: 1px solid #2a3a4a;
+  border-radius: 4px;
+  color: #c8d8e8;
+  padding: 3px 6px;
+  font-size: 13px;
+  width: 80px;
+  text-align: right;
+}
+.gl-input:focus {
+  outline: none;
+  border-color: #3a6a9a;
+}
+.gl-input--sm {
+  width: 52px;
+}
+
+/* 알림 설정 */
+.gl-alert-section {
+  border-top: 1px solid #1e2f3e;
+  padding-top: 20px;
+}
+
+.gl-alert-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #a8c0d8;
+  margin: 0 0 12px;
+}
+
+.gl-alert-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gl-alert-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.gl-alert-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.gl-alert-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #8899aa;
+}

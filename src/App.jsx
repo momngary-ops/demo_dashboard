@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { CapabilitiesProvider } from './contexts/CapabilitiesContext'
+import { GuidelineProvider } from './contexts/GuidelineContext'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DashboardPage from './pages/DashboardPage'
 import { STORAGE_KEY_LAYOUTS, STORAGE_KEY_LAYOUT, STORAGE_KEY_WIDGETS } from './pages/DashboardPage'
 import GrowthDataInputPage from './pages/GrowthDataInputPage'
 import FarmSettingsPage from './pages/FarmSettingsPage'
+import GuidelineSettingsPage from './pages/GuidelineSettingsPage'
 import './App.css'
 
 export default function App() {
@@ -37,9 +39,11 @@ export default function App() {
     dashboard: <DashboardPage key={dashboardResetKey} />,
     'growth-data-input': <GrowthDataInputPage />,
     'farm-settings': <FarmSettingsPage />,
+    'guideline-settings': <GuidelineSettingsPage />,
   }
 
   return (
+    <GuidelineProvider>
     <CapabilitiesProvider>
     <div className="layout">
       <Sidebar
@@ -64,5 +68,6 @@ export default function App() {
       </div>
     </div>
     </CapabilitiesProvider>
+    </GuidelineProvider>
   )
 }

@@ -51,7 +51,7 @@ const NAV_GROUPS = [
     type: 'accordion',
     children: [
       { id: 'farm-settings',   label: '농장 등록/설정' },
-      { id: 'data-item-edit',  label: '데이터 항목 수정 및 변경' },
+      { id: 'guideline-settings', label: '데이터 항목 수정 및 변경' },
       { id: 'dashboard-reset', label: '대시보드 초기화', special: 'reset' },
     ],
   },

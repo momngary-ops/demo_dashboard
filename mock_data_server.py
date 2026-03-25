@@ -62,8 +62,10 @@ app.add_middleware(
 
 ZONE_CONFIG_PATH     = Path(__file__).parent / "zone_config.json"
 SETTINGS_PATH        = Path(__file__).parent / "dashboard_settings.json"
+GUIDELINES_PATH      = Path(__file__).parent / "guidelines.json"
 DB_PATH              = Path(__file__).parent / "data_log.db"
 LOG_INTERVAL_SECONDS = 300   # 5분
+ALERT_INTERVAL_SEC   = 60    # 1분
 
 
 def _load_zone_config() -> dict:
@@ -133,6 +135,432 @@ def _save_settings(patch: dict):
 
 
 # ══════════════════════════════════════════════════════════
+# 가이드라인 기본값 (CSV → Python dict, 12개월 × 24시간)
+# ══════════════════════════════════════════════════════════
+
+DEFAULT_GUIDELINES = {
+    "1": [
+        {"hour": 0, "temp_min": 12.6, "temp_max": 14.6, "hum_min": 83.1, "hum_max": 94.7, "co2": 502.0},
+        {"hour": 1, "temp_min": 12.6, "temp_max": 14.6, "hum_min": 82.7, "hum_max": 94.6, "co2": 521.0},
+        {"hour": 2, "temp_min": 12.6, "temp_max": 14.6, "hum_min": 82.6, "hum_max": 94.6, "co2": 528.0},
+        {"hour": 3, "temp_min": 12.6, "temp_max": 14.6, "hum_min": 82.5, "hum_max": 94.5, "co2": 534.0},
+        {"hour": 4, "temp_min": 12.6, "temp_max": 14.8, "hum_min": 82.7, "hum_max": 94.5, "co2": 548.0},
+        {"hour": 5, "temp_min": 12.7, "temp_max": 14.9, "hum_min": 82.7, "hum_max": 94.3, "co2": 553.0},
+        {"hour": 6, "temp_min": 12.8, "temp_max": 15.0, "hum_min": 82.6, "hum_max": 94.0, "co2": 559.0},
+        {"hour": 7, "temp_min": 13.2, "temp_max": 15.7, "hum_min": 82.9, "hum_max": 94.0, "co2": 574.0},
+        {"hour": 8, "temp_min": 13.4, "temp_max": 16.1, "hum_min": 83.8, "hum_max": 94.0, "co2": 569.0},
+        {"hour": 9, "temp_min": 13.6, "temp_max": 16.5, "hum_min": 84.7, "hum_max": 94.0, "co2": 565.0},
+        {"hour": 10, "temp_min": 16.7, "temp_max": 20.5, "hum_min": 76.2, "hum_max": 91.5, "co2": 458.0},
+        {"hour": 11, "temp_min": 18.3, "temp_max": 22.2, "hum_min": 71.6, "hum_max": 90.1, "co2": 433.0},
+        {"hour": 12, "temp_min": 19.8, "temp_max": 23.9, "hum_min": 66.9, "hum_max": 88.7, "co2": 409.0},
+        {"hour": 13, "temp_min": 20.6, "temp_max": 24.8, "hum_min": 67.5, "hum_max": 88.9, "co2": 392.0},
+        {"hour": 14, "temp_min": 20.2, "temp_max": 24.4, "hum_min": 70.3, "hum_max": 89.4, "co2": 381.0},
+        {"hour": 15, "temp_min": 19.8, "temp_max": 23.9, "hum_min": 73.0, "hum_max": 89.8, "co2": 369.0},
+        {"hour": 16, "temp_min": 16.0, "temp_max": 20.5, "hum_min": 81.0, "hum_max": 94.6, "co2": 368.0},
+        {"hour": 17, "temp_min": 14.9, "temp_max": 18.4, "hum_min": 84.0, "hum_max": 95.3, "co2": 378.0},
+        {"hour": 18, "temp_min": 14.2, "temp_max": 17.5, "hum_min": 84.1, "hum_max": 95.4, "co2": 390.0},
+        {"hour": 19, "temp_min": 13.7, "temp_max": 16.7, "hum_min": 83.5, "hum_max": 95.2, "co2": 412.0},
+        {"hour": 20, "temp_min": 13.3, "temp_max": 16.1, "hum_min": 83.1, "hum_max": 95.1, "co2": 430.0},
+        {"hour": 21, "temp_min": 13.1, "temp_max": 15.8, "hum_min": 82.8, "hum_max": 94.9, "co2": 448.0},
+        {"hour": 22, "temp_min": 12.9, "temp_max": 15.5, "hum_min": 82.8, "hum_max": 94.9, "co2": 466.0},
+        {"hour": 23, "temp_min": 12.7, "temp_max": 15.1, "hum_min": 82.9, "hum_max": 94.8, "co2": 484.0},
+    ],
+    "2": [
+        {"hour": 0, "temp_min": 12.8, "temp_max": 14.8, "hum_min": 82.5, "hum_max": 94.2, "co2": 498.0},
+        {"hour": 1, "temp_min": 12.8, "temp_max": 14.8, "hum_min": 82.1, "hum_max": 94.1, "co2": 516.0},
+        {"hour": 2, "temp_min": 12.8, "temp_max": 14.8, "hum_min": 82.0, "hum_max": 94.1, "co2": 523.0},
+        {"hour": 3, "temp_min": 12.8, "temp_max": 14.8, "hum_min": 81.9, "hum_max": 94.0, "co2": 530.0},
+        {"hour": 4, "temp_min": 12.8, "temp_max": 15.0, "hum_min": 82.1, "hum_max": 94.0, "co2": 543.0},
+        {"hour": 5, "temp_min": 12.9, "temp_max": 15.1, "hum_min": 82.1, "hum_max": 93.8, "co2": 548.0},
+        {"hour": 6, "temp_min": 13.0, "temp_max": 15.2, "hum_min": 82.0, "hum_max": 93.5, "co2": 554.0},
+        {"hour": 7, "temp_min": 13.4, "temp_max": 15.9, "hum_min": 82.3, "hum_max": 93.5, "co2": 568.0},
+        {"hour": 8, "temp_min": 13.7, "temp_max": 16.4, "hum_min": 83.1, "hum_max": 93.5, "co2": 563.0},
+        {"hour": 9, "temp_min": 14.0, "temp_max": 16.9, "hum_min": 84.0, "hum_max": 93.5, "co2": 558.0},
+        {"hour": 10, "temp_min": 17.3, "temp_max": 21.1, "hum_min": 74.7, "hum_max": 90.5, "co2": 450.0},
+        {"hour": 11, "temp_min": 19.1, "temp_max": 23.1, "hum_min": 69.7, "hum_max": 89.0, "co2": 424.0},
+        {"hour": 12, "temp_min": 20.6, "temp_max": 24.8, "hum_min": 64.9, "hum_max": 87.5, "co2": 398.0},
+        {"hour": 13, "temp_min": 21.4, "temp_max": 25.8, "hum_min": 65.5, "hum_max": 87.7, "co2": 381.0},
+        {"hour": 14, "temp_min": 21.0, "temp_max": 25.3, "hum_min": 68.4, "hum_max": 88.2, "co2": 370.0},
+        {"hour": 15, "temp_min": 20.6, "temp_max": 24.8, "hum_min": 71.1, "hum_max": 88.6, "co2": 358.0},
+        {"hour": 16, "temp_min": 16.6, "temp_max": 21.3, "hum_min": 79.6, "hum_max": 94.0, "co2": 357.0},
+        {"hour": 17, "temp_min": 15.4, "temp_max": 19.1, "hum_min": 82.8, "hum_max": 94.8, "co2": 367.0},
+        {"hour": 18, "temp_min": 14.6, "temp_max": 18.0, "hum_min": 83.0, "hum_max": 94.9, "co2": 379.0},
+        {"hour": 19, "temp_min": 14.0, "temp_max": 17.2, "hum_min": 82.4, "hum_max": 94.7, "co2": 401.0},
+        {"hour": 20, "temp_min": 13.6, "temp_max": 16.6, "hum_min": 82.0, "hum_max": 94.6, "co2": 419.0},
+        {"hour": 21, "temp_min": 13.4, "temp_max": 16.3, "hum_min": 81.7, "hum_max": 94.4, "co2": 437.0},
+        {"hour": 22, "temp_min": 13.2, "temp_max": 16.0, "hum_min": 81.7, "hum_max": 94.4, "co2": 455.0},
+        {"hour": 23, "temp_min": 13.0, "temp_max": 15.6, "hum_min": 81.8, "hum_max": 94.3, "co2": 473.0},
+    ],
+    "3": [
+        {"hour": 0, "temp_min": 13.3, "temp_max": 15.5, "hum_min": 81.3, "hum_max": 93.2, "co2": 488.0},
+        {"hour": 1, "temp_min": 13.3, "temp_max": 15.5, "hum_min": 80.9, "hum_max": 93.1, "co2": 505.0},
+        {"hour": 2, "temp_min": 13.3, "temp_max": 15.5, "hum_min": 80.8, "hum_max": 93.1, "co2": 512.0},
+        {"hour": 3, "temp_min": 13.3, "temp_max": 15.5, "hum_min": 80.7, "hum_max": 93.0, "co2": 518.0},
+        {"hour": 4, "temp_min": 13.3, "temp_max": 15.7, "hum_min": 80.9, "hum_max": 93.0, "co2": 531.0},
+        {"hour": 5, "temp_min": 13.4, "temp_max": 15.8, "hum_min": 80.9, "hum_max": 92.8, "co2": 535.0},
+        {"hour": 6, "temp_min": 13.5, "temp_max": 15.9, "hum_min": 80.8, "hum_max": 92.5, "co2": 540.0},
+        {"hour": 7, "temp_min": 14.0, "temp_max": 16.7, "hum_min": 81.0, "hum_max": 92.5, "co2": 553.0},
+        {"hour": 8, "temp_min": 14.4, "temp_max": 17.3, "hum_min": 81.6, "hum_max": 92.5, "co2": 547.0},
+        {"hour": 9, "temp_min": 14.8, "temp_max": 17.9, "hum_min": 82.2, "hum_max": 92.5, "co2": 540.0},
+        {"hour": 10, "temp_min": 18.5, "temp_max": 22.6, "hum_min": 71.9, "hum_max": 88.9, "co2": 430.0},
+        {"hour": 11, "temp_min": 20.6, "temp_max": 25.1, "hum_min": 66.3, "hum_max": 87.2, "co2": 402.0},
+        {"hour": 12, "temp_min": 22.4, "temp_max": 27.1, "hum_min": 61.0, "hum_max": 85.5, "co2": 374.0},
+        {"hour": 13, "temp_min": 23.3, "temp_max": 28.2, "hum_min": 61.6, "hum_max": 85.6, "co2": 356.0},
+        {"hour": 14, "temp_min": 22.9, "temp_max": 27.7, "hum_min": 64.7, "hum_max": 86.1, "co2": 344.0},
+        {"hour": 15, "temp_min": 22.4, "temp_max": 27.1, "hum_min": 67.5, "hum_max": 86.5, "co2": 332.0},
+        {"hour": 16, "temp_min": 17.8, "temp_max": 22.9, "hum_min": 77.2, "hum_max": 92.8, "co2": 330.0},
+        {"hour": 17, "temp_min": 16.5, "temp_max": 20.5, "hum_min": 80.6, "hum_max": 93.7, "co2": 340.0},
+        {"hour": 18, "temp_min": 15.6, "temp_max": 19.3, "hum_min": 80.9, "hum_max": 93.8, "co2": 352.0},
+        {"hour": 19, "temp_min": 14.9, "temp_max": 18.3, "hum_min": 80.3, "hum_max": 93.6, "co2": 374.0},
+        {"hour": 20, "temp_min": 14.5, "temp_max": 17.7, "hum_min": 79.9, "hum_max": 93.5, "co2": 392.0},
+        {"hour": 21, "temp_min": 14.2, "temp_max": 17.4, "hum_min": 79.6, "hum_max": 93.3, "co2": 410.0},
+        {"hour": 22, "temp_min": 14.0, "temp_max": 17.1, "hum_min": 79.6, "hum_max": 93.3, "co2": 428.0},
+        {"hour": 23, "temp_min": 13.7, "temp_max": 16.6, "hum_min": 79.7, "hum_max": 93.2, "co2": 446.0},
+    ],
+    "4": [
+        {"hour": 0, "temp_min": 14.1, "temp_max": 16.5, "hum_min": 79.4, "hum_max": 91.6, "co2": 471.0},
+        {"hour": 1, "temp_min": 14.1, "temp_max": 16.5, "hum_min": 79.0, "hum_max": 91.5, "co2": 488.0},
+        {"hour": 2, "temp_min": 14.1, "temp_max": 16.5, "hum_min": 78.9, "hum_max": 91.5, "co2": 494.0},
+        {"hour": 3, "temp_min": 14.1, "temp_max": 16.5, "hum_min": 78.8, "hum_max": 91.4, "co2": 500.0},
+        {"hour": 4, "temp_min": 14.1, "temp_max": 16.7, "hum_min": 79.0, "hum_max": 91.4, "co2": 513.0},
+        {"hour": 5, "temp_min": 14.2, "temp_max": 16.8, "hum_min": 79.0, "hum_max": 91.2, "co2": 517.0},
+        {"hour": 6, "temp_min": 14.3, "temp_max": 16.9, "hum_min": 78.9, "hum_max": 90.9, "co2": 522.0},
+        {"hour": 7, "temp_min": 14.9, "temp_max": 17.8, "hum_min": 79.1, "hum_max": 90.9, "co2": 534.0},
+        {"hour": 8, "temp_min": 15.4, "temp_max": 18.5, "hum_min": 79.7, "hum_max": 90.9, "co2": 528.0},
+        {"hour": 9, "temp_min": 15.9, "temp_max": 19.2, "hum_min": 80.2, "hum_max": 90.9, "co2": 521.0},
+        {"hour": 10, "temp_min": 20.0, "temp_max": 24.5, "hum_min": 69.0, "hum_max": 87.0, "co2": 408.0},
+        {"hour": 11, "temp_min": 22.4, "temp_max": 27.4, "hum_min": 62.9, "hum_max": 85.1, "co2": 378.0},
+        {"hour": 12, "temp_min": 24.5, "temp_max": 29.8, "hum_min": 57.5, "hum_max": 83.2, "co2": 348.0},
+        {"hour": 13, "temp_min": 25.6, "temp_max": 31.1, "hum_min": 57.9, "hum_max": 83.3, "co2": 329.0},
+        {"hour": 14, "temp_min": 25.2, "temp_max": 30.6, "hum_min": 61.3, "hum_max": 83.8, "co2": 317.0},
+        {"hour": 15, "temp_min": 24.5, "temp_max": 29.8, "hum_min": 64.4, "hum_max": 84.3, "co2": 305.0},
+        {"hour": 16, "temp_min": 19.3, "temp_max": 24.9, "hum_min": 74.9, "hum_max": 91.5, "co2": 302.0},
+        {"hour": 17, "temp_min": 17.9, "temp_max": 22.3, "hum_min": 78.5, "hum_max": 92.5, "co2": 312.0},
+        {"hour": 18, "temp_min": 16.9, "temp_max": 21.0, "hum_min": 78.9, "hum_max": 92.6, "co2": 325.0},
+        {"hour": 19, "temp_min": 16.1, "temp_max": 19.9, "hum_min": 78.2, "hum_max": 92.3, "co2": 348.0},
+        {"hour": 20, "temp_min": 15.6, "temp_max": 19.2, "hum_min": 77.8, "hum_max": 92.2, "co2": 366.0},
+        {"hour": 21, "temp_min": 15.3, "temp_max": 18.8, "hum_min": 77.5, "hum_max": 92.0, "co2": 384.0},
+        {"hour": 22, "temp_min": 15.0, "temp_max": 18.5, "hum_min": 77.5, "hum_max": 92.0, "co2": 402.0},
+        {"hour": 23, "temp_min": 14.7, "temp_max": 18.0, "hum_min": 77.6, "hum_max": 91.9, "co2": 421.0},
+    ],
+    "5": [
+        {"hour": 0, "temp_min": 15.3, "temp_max": 17.9, "hum_min": 76.7, "hum_max": 89.4, "co2": 449.0},
+        {"hour": 1, "temp_min": 15.3, "temp_max": 17.9, "hum_min": 76.3, "hum_max": 89.3, "co2": 465.0},
+        {"hour": 2, "temp_min": 15.3, "temp_max": 17.9, "hum_min": 76.2, "hum_max": 89.3, "co2": 471.0},
+        {"hour": 3, "temp_min": 15.3, "temp_max": 17.9, "hum_min": 76.1, "hum_max": 89.2, "co2": 477.0},
+        {"hour": 4, "temp_min": 15.3, "temp_max": 18.1, "hum_min": 76.3, "hum_max": 89.2, "co2": 489.0},
+        {"hour": 5, "temp_min": 15.4, "temp_max": 18.2, "hum_min": 76.3, "hum_max": 89.0, "co2": 493.0},
+        {"hour": 6, "temp_min": 15.5, "temp_max": 18.3, "hum_min": 76.2, "hum_max": 88.7, "co2": 498.0},
+        {"hour": 7, "temp_min": 16.2, "temp_max": 19.4, "hum_min": 76.3, "hum_max": 88.7, "co2": 509.0},
+        {"hour": 8, "temp_min": 16.8, "temp_max": 20.3, "hum_min": 76.8, "hum_max": 88.7, "co2": 504.0},
+        {"hour": 9, "temp_min": 17.4, "temp_max": 21.1, "hum_min": 77.3, "hum_max": 88.7, "co2": 498.0},
+        {"hour": 10, "temp_min": 22.2, "temp_max": 27.2, "hum_min": 64.8, "hum_max": 84.5, "co2": 382.0},
+        {"hour": 11, "temp_min": 25.0, "temp_max": 30.7, "hum_min": 58.3, "hum_max": 82.5, "co2": 350.0},
+        {"hour": 12, "temp_min": 27.4, "temp_max": 33.8, "hum_min": 52.4, "hum_max": 80.4, "co2": 317.0},
+        {"hour": 13, "temp_min": 28.7, "temp_max": 35.4, "hum_min": 52.7, "hum_max": 80.4, "co2": 297.0},
+        {"hour": 14, "temp_min": 28.3, "temp_max": 34.9, "hum_min": 56.3, "hum_max": 81.0, "co2": 285.0},
+        {"hour": 15, "temp_min": 27.4, "temp_max": 33.8, "hum_min": 59.7, "hum_max": 81.5, "co2": 273.0},
+        {"hour": 16, "temp_min": 21.5, "temp_max": 27.8, "hum_min": 71.5, "hum_max": 90.0, "co2": 269.0},
+        {"hour": 17, "temp_min": 19.9, "temp_max": 24.9, "hum_min": 75.4, "hum_max": 91.1, "co2": 279.0},
+        {"hour": 18, "temp_min": 18.8, "temp_max": 23.4, "hum_min": 75.9, "hum_max": 91.3, "co2": 292.0},
+        {"hour": 19, "temp_min": 17.9, "temp_max": 22.2, "hum_min": 75.2, "hum_max": 91.0, "co2": 316.0},
+        {"hour": 20, "temp_min": 17.3, "temp_max": 21.5, "hum_min": 74.8, "hum_max": 90.9, "co2": 335.0},
+        {"hour": 21, "temp_min": 17.0, "temp_max": 21.1, "hum_min": 74.5, "hum_max": 90.7, "co2": 353.0},
+        {"hour": 22, "temp_min": 16.7, "temp_max": 20.8, "hum_min": 74.4, "hum_max": 90.6, "co2": 371.0},
+        {"hour": 23, "temp_min": 16.3, "temp_max": 20.3, "hum_min": 74.6, "hum_max": 90.6, "co2": 390.0},
+    ],
+    "6": [
+        {"hour": 0, "temp_min": 16.9, "temp_max": 19.8, "hum_min": 73.4, "hum_max": 86.5, "co2": 420.0},
+        {"hour": 1, "temp_min": 16.9, "temp_max": 19.8, "hum_min": 73.0, "hum_max": 86.4, "co2": 435.0},
+        {"hour": 2, "temp_min": 16.9, "temp_max": 19.8, "hum_min": 72.9, "hum_max": 86.4, "co2": 441.0},
+        {"hour": 3, "temp_min": 16.9, "temp_max": 19.8, "hum_min": 72.8, "hum_max": 86.3, "co2": 447.0},
+        {"hour": 4, "temp_min": 16.9, "temp_max": 20.0, "hum_min": 73.0, "hum_max": 86.3, "co2": 458.0},
+        {"hour": 5, "temp_min": 17.0, "temp_max": 20.1, "hum_min": 73.0, "hum_max": 86.1, "co2": 462.0},
+        {"hour": 6, "temp_min": 17.1, "temp_max": 20.2, "hum_min": 72.9, "hum_max": 85.8, "co2": 467.0},
+        {"hour": 7, "temp_min": 17.9, "temp_max": 21.5, "hum_min": 73.0, "hum_max": 85.8, "co2": 477.0},
+        {"hour": 8, "temp_min": 18.6, "temp_max": 22.5, "hum_min": 73.4, "hum_max": 85.8, "co2": 471.0},
+        {"hour": 9, "temp_min": 19.3, "temp_max": 23.4, "hum_min": 73.8, "hum_max": 85.8, "co2": 465.0},
+        {"hour": 10, "temp_min": 24.7, "temp_max": 30.3, "hum_min": 59.7, "hum_max": 81.0, "co2": 346.0},
+        {"hour": 11, "temp_min": 27.9, "temp_max": 34.4, "hum_min": 52.7, "hum_max": 78.7, "co2": 312.0},
+        {"hour": 12, "temp_min": 30.8, "temp_max": 38.2, "hum_min": 46.4, "hum_max": 76.4, "co2": 278.0},
+        {"hour": 13, "temp_min": 32.3, "temp_max": 40.2, "hum_min": 46.7, "hum_max": 76.3, "co2": 257.0},
+        {"hour": 14, "temp_min": 31.8, "temp_max": 39.6, "hum_min": 50.5, "hum_max": 77.0, "co2": 244.0},
+        {"hour": 15, "temp_min": 30.8, "temp_max": 38.2, "hum_min": 54.0, "hum_max": 77.6, "co2": 231.0},
+        {"hour": 16, "temp_min": 24.0, "temp_max": 31.2, "hum_min": 67.2, "hum_max": 87.8, "co2": 227.0},
+        {"hour": 17, "temp_min": 22.3, "temp_max": 28.1, "hum_min": 71.4, "hum_max": 89.0, "co2": 237.0},
+        {"hour": 18, "temp_min": 21.0, "temp_max": 26.4, "hum_min": 72.1, "hum_max": 89.2, "co2": 251.0},
+        {"hour": 19, "temp_min": 20.1, "temp_max": 25.0, "hum_min": 71.4, "hum_max": 88.8, "co2": 275.0},
+        {"hour": 20, "temp_min": 19.5, "temp_max": 24.3, "hum_min": 70.9, "hum_max": 88.7, "co2": 294.0},
+        {"hour": 21, "temp_min": 19.1, "temp_max": 23.8, "hum_min": 70.6, "hum_max": 88.5, "co2": 313.0},
+        {"hour": 22, "temp_min": 18.8, "temp_max": 23.4, "hum_min": 70.6, "hum_max": 88.5, "co2": 331.0},
+        {"hour": 23, "temp_min": 18.4, "temp_max": 22.8, "hum_min": 70.8, "hum_max": 88.4, "co2": 350.0},
+    ],
+    "7": [
+        {"hour": 0, "temp_min": 18.5, "temp_max": 21.7, "hum_min": 69.9, "hum_max": 83.4, "co2": 390.0},
+        {"hour": 1, "temp_min": 18.5, "temp_max": 21.7, "hum_min": 69.5, "hum_max": 83.3, "co2": 404.0},
+        {"hour": 2, "temp_min": 18.5, "temp_max": 21.7, "hum_min": 69.4, "hum_max": 83.3, "co2": 410.0},
+        {"hour": 3, "temp_min": 18.5, "temp_max": 21.7, "hum_min": 69.3, "hum_max": 83.2, "co2": 416.0},
+        {"hour": 4, "temp_min": 18.5, "temp_max": 21.9, "hum_min": 69.5, "hum_max": 83.2, "co2": 427.0},
+        {"hour": 5, "temp_min": 18.6, "temp_max": 22.0, "hum_min": 69.5, "hum_max": 83.0, "co2": 430.0},
+        {"hour": 6, "temp_min": 18.7, "temp_max": 22.1, "hum_min": 69.4, "hum_max": 82.7, "co2": 435.0},
+        {"hour": 7, "temp_min": 19.7, "temp_max": 23.6, "hum_min": 69.5, "hum_max": 82.7, "co2": 444.0},
+        {"hour": 8, "temp_min": 20.6, "temp_max": 24.9, "hum_min": 69.8, "hum_max": 82.7, "co2": 438.0},
+        {"hour": 9, "temp_min": 21.5, "temp_max": 26.1, "hum_min": 70.2, "hum_max": 82.7, "co2": 432.0},
+        {"hour": 10, "temp_min": 27.7, "temp_max": 34.1, "hum_min": 55.2, "hum_max": 77.1, "co2": 308.0},
+        {"hour": 11, "temp_min": 31.4, "temp_max": 38.9, "hum_min": 47.7, "hum_max": 74.5, "co2": 271.0},
+        {"hour": 12, "temp_min": 34.8, "temp_max": 43.6, "hum_min": 41.1, "hum_max": 71.8, "co2": 233.0},
+        {"hour": 13, "temp_min": 36.6, "temp_max": 45.9, "hum_min": 41.3, "hum_max": 71.7, "co2": 210.0},
+        {"hour": 14, "temp_min": 36.1, "temp_max": 45.2, "hum_min": 45.3, "hum_max": 72.4, "co2": 196.0},
+        {"hour": 15, "temp_min": 34.8, "temp_max": 43.6, "hum_min": 49.0, "hum_max": 73.1, "co2": 183.0},
+        {"hour": 16, "temp_min": 27.0, "temp_max": 35.2, "hum_min": 63.2, "hum_max": 85.6, "co2": 178.0},
+        {"hour": 17, "temp_min": 25.1, "temp_max": 31.8, "hum_min": 67.6, "hum_max": 86.9, "co2": 188.0},
+        {"hour": 18, "temp_min": 23.7, "temp_max": 29.9, "hum_min": 68.5, "hum_max": 87.2, "co2": 202.0},
+        {"hour": 19, "temp_min": 22.7, "temp_max": 28.4, "hum_min": 67.7, "hum_max": 86.7, "co2": 226.0},
+        {"hour": 20, "temp_min": 22.0, "temp_max": 27.5, "hum_min": 67.2, "hum_max": 86.6, "co2": 246.0},
+        {"hour": 21, "temp_min": 21.6, "temp_max": 27.0, "hum_min": 66.9, "hum_max": 86.4, "co2": 265.0},
+        {"hour": 22, "temp_min": 21.2, "temp_max": 26.5, "hum_min": 66.9, "hum_max": 86.3, "co2": 284.0},
+        {"hour": 23, "temp_min": 20.8, "temp_max": 25.9, "hum_min": 67.1, "hum_max": 86.3, "co2": 303.0},
+    ],
+    "8": [
+        {"hour": 0, "temp_min": 19.9, "temp_max": 23.4, "hum_min": 66.4, "hum_max": 80.2, "co2": 361.0},
+        {"hour": 1, "temp_min": 19.9, "temp_max": 23.4, "hum_min": 66.0, "hum_max": 80.1, "co2": 375.0},
+        {"hour": 2, "temp_min": 19.9, "temp_max": 23.4, "hum_min": 65.9, "hum_max": 80.1, "co2": 381.0},
+        {"hour": 3, "temp_min": 19.9, "temp_max": 23.4, "hum_min": 65.8, "hum_max": 80.0, "co2": 387.0},
+        {"hour": 4, "temp_min": 19.9, "temp_max": 23.6, "hum_min": 66.0, "hum_max": 80.0, "co2": 398.0},
+        {"hour": 5, "temp_min": 20.0, "temp_max": 23.7, "hum_min": 66.0, "hum_max": 79.8, "co2": 401.0},
+        {"hour": 6, "temp_min": 20.1, "temp_max": 23.8, "hum_min": 65.9, "hum_max": 79.5, "co2": 406.0},
+        {"hour": 7, "temp_min": 21.2, "temp_max": 25.6, "hum_min": 66.0, "hum_max": 79.5, "co2": 414.0},
+        {"hour": 8, "temp_min": 22.3, "temp_max": 27.1, "hum_min": 66.2, "hum_max": 79.5, "co2": 408.0},
+        {"hour": 9, "temp_min": 23.3, "temp_max": 28.5, "hum_min": 66.5, "hum_max": 79.5, "co2": 401.0},
+        {"hour": 10, "temp_min": 30.1, "temp_max": 37.3, "hum_min": 50.3, "hum_max": 73.5, "co2": 275.0},
+        {"hour": 11, "temp_min": 34.3, "temp_max": 42.8, "hum_min": 42.4, "hum_max": 70.5, "co2": 235.0},
+        {"hour": 12, "temp_min": 38.1, "temp_max": 48.2, "hum_min": 35.4, "hum_max": 67.4, "co2": 194.0},
+        {"hour": 13, "temp_min": 40.2, "temp_max": 51.0, "hum_min": 35.6, "hum_max": 67.3, "co2": 170.0},
+        {"hour": 14, "temp_min": 39.7, "temp_max": 50.3, "hum_min": 39.8, "hum_max": 68.1, "co2": 155.0},
+        {"hour": 15, "temp_min": 38.1, "temp_max": 48.2, "hum_min": 43.8, "hum_max": 68.9, "co2": 141.0},
+        {"hour": 16, "temp_min": 29.4, "temp_max": 38.6, "hum_min": 59.0, "hum_max": 83.5, "co2": 135.0},
+        {"hour": 17, "temp_min": 27.3, "temp_max": 34.9, "hum_min": 63.7, "hum_max": 84.9, "co2": 145.0},
+        {"hour": 18, "temp_min": 25.8, "temp_max": 33.0, "hum_min": 64.7, "hum_max": 85.2, "co2": 160.0},
+        {"hour": 19, "temp_min": 24.8, "temp_max": 31.3, "hum_min": 63.9, "hum_max": 84.7, "co2": 184.0},
+        {"hour": 20, "temp_min": 24.0, "temp_max": 30.4, "hum_min": 63.4, "hum_max": 84.6, "co2": 204.0},
+        {"hour": 21, "temp_min": 23.6, "temp_max": 29.9, "hum_min": 63.1, "hum_max": 84.4, "co2": 224.0},
+        {"hour": 22, "temp_min": 23.2, "temp_max": 29.3, "hum_min": 63.0, "hum_max": 84.3, "co2": 243.0},
+        {"hour": 23, "temp_min": 22.7, "temp_max": 28.6, "hum_min": 63.2, "hum_max": 84.2, "co2": 263.0},
+    ],
+    "9": [
+        {"hour": 0, "temp_min": 18.7, "temp_max": 22.0, "hum_min": 69.5, "hum_max": 83.1, "co2": 403.0},
+        {"hour": 1, "temp_min": 18.7, "temp_max": 22.0, "hum_min": 69.1, "hum_max": 83.0, "co2": 418.0},
+        {"hour": 2, "temp_min": 18.7, "temp_max": 22.0, "hum_min": 69.0, "hum_max": 83.0, "co2": 424.0},
+        {"hour": 3, "temp_min": 18.7, "temp_max": 22.0, "hum_min": 68.9, "hum_max": 82.9, "co2": 430.0},
+        {"hour": 4, "temp_min": 18.7, "temp_max": 22.2, "hum_min": 69.1, "hum_max": 82.9, "co2": 442.0},
+        {"hour": 5, "temp_min": 18.8, "temp_max": 22.3, "hum_min": 69.1, "hum_max": 82.7, "co2": 446.0},
+        {"hour": 6, "temp_min": 18.9, "temp_max": 22.4, "hum_min": 69.0, "hum_max": 82.4, "co2": 451.0},
+        {"hour": 7, "temp_min": 19.8, "temp_max": 23.8, "hum_min": 69.1, "hum_max": 82.4, "co2": 460.0},
+        {"hour": 8, "temp_min": 20.7, "temp_max": 25.1, "hum_min": 69.4, "hum_max": 82.4, "co2": 454.0},
+        {"hour": 9, "temp_min": 21.6, "temp_max": 26.3, "hum_min": 69.8, "hum_max": 82.4, "co2": 448.0},
+        {"hour": 10, "temp_min": 27.9, "temp_max": 34.4, "hum_min": 54.7, "hum_max": 76.9, "co2": 319.0},
+        {"hour": 11, "temp_min": 31.6, "temp_max": 39.2, "hum_min": 47.1, "hum_max": 74.3, "co2": 281.0},
+        {"hour": 12, "temp_min": 35.2, "temp_max": 44.2, "hum_min": 40.3, "hum_max": 71.5, "co2": 242.0},
+        {"hour": 13, "temp_min": 37.0, "temp_max": 46.5, "hum_min": 40.5, "hum_max": 71.4, "co2": 219.0},
+        {"hour": 14, "temp_min": 36.5, "temp_max": 45.9, "hum_min": 44.6, "hum_max": 72.2, "co2": 205.0},
+        {"hour": 15, "temp_min": 35.2, "temp_max": 44.2, "hum_min": 48.5, "hum_max": 72.9, "co2": 191.0},
+        {"hour": 16, "temp_min": 27.2, "temp_max": 35.5, "hum_min": 62.8, "hum_max": 85.3, "co2": 186.0},
+        {"hour": 17, "temp_min": 25.2, "temp_max": 32.0, "hum_min": 67.3, "hum_max": 86.7, "co2": 196.0},
+        {"hour": 18, "temp_min": 23.8, "temp_max": 30.2, "hum_min": 68.2, "hum_max": 87.0, "co2": 211.0},
+        {"hour": 19, "temp_min": 22.8, "temp_max": 28.7, "hum_min": 67.4, "hum_max": 86.5, "co2": 236.0},
+        {"hour": 20, "temp_min": 22.1, "temp_max": 27.8, "hum_min": 66.9, "hum_max": 86.4, "co2": 256.0},
+        {"hour": 21, "temp_min": 21.7, "temp_max": 27.3, "hum_min": 66.6, "hum_max": 86.2, "co2": 275.0},
+        {"hour": 22, "temp_min": 21.3, "temp_max": 26.7, "hum_min": 66.5, "hum_max": 86.1, "co2": 295.0},
+        {"hour": 23, "temp_min": 20.9, "temp_max": 26.1, "hum_min": 66.8, "hum_max": 86.1, "co2": 315.0},
+    ],
+    "10": [
+        {"hour": 0, "temp_min": 16.8, "temp_max": 19.7, "hum_min": 74.3, "hum_max": 87.5, "co2": 447.0},
+        {"hour": 1, "temp_min": 16.8, "temp_max": 19.7, "hum_min": 73.9, "hum_max": 87.4, "co2": 463.0},
+        {"hour": 2, "temp_min": 16.8, "temp_max": 19.7, "hum_min": 73.8, "hum_max": 87.4, "co2": 469.0},
+        {"hour": 3, "temp_min": 16.8, "temp_max": 19.7, "hum_min": 73.7, "hum_max": 87.3, "co2": 476.0},
+        {"hour": 4, "temp_min": 16.8, "temp_max": 19.9, "hum_min": 73.9, "hum_max": 87.3, "co2": 488.0},
+        {"hour": 5, "temp_min": 16.9, "temp_max": 20.0, "hum_min": 73.9, "hum_max": 87.1, "co2": 492.0},
+        {"hour": 6, "temp_min": 17.0, "temp_max": 20.1, "hum_min": 73.8, "hum_max": 86.8, "co2": 497.0},
+        {"hour": 7, "temp_min": 17.8, "temp_max": 21.3, "hum_min": 73.9, "hum_max": 86.8, "co2": 507.0},
+        {"hour": 8, "temp_min": 18.5, "temp_max": 22.4, "hum_min": 74.4, "hum_max": 86.8, "co2": 501.0},
+        {"hour": 9, "temp_min": 19.2, "temp_max": 23.3, "hum_min": 74.8, "hum_max": 86.8, "co2": 495.0},
+        {"hour": 10, "temp_min": 24.6, "temp_max": 30.1, "hum_min": 60.6, "hum_max": 81.3, "co2": 367.0},
+        {"hour": 11, "temp_min": 27.7, "temp_max": 34.2, "hum_min": 53.6, "hum_max": 79.0, "co2": 332.0},
+        {"hour": 12, "temp_min": 30.6, "temp_max": 38.0, "hum_min": 46.4, "hum_max": 76.6, "co2": 297.0},
+        {"hour": 13, "temp_min": 32.1, "temp_max": 39.9, "hum_min": 46.7, "hum_max": 76.5, "co2": 274.0},
+        {"hour": 14, "temp_min": 31.6, "temp_max": 39.3, "hum_min": 50.6, "hum_max": 77.2, "co2": 261.0},
+        {"hour": 15, "temp_min": 30.6, "temp_max": 38.0, "hum_min": 54.2, "hum_max": 77.8, "co2": 248.0},
+        {"hour": 16, "temp_min": 23.8, "temp_max": 31.1, "hum_min": 67.7, "hum_max": 88.0, "co2": 243.0},
+        {"hour": 17, "temp_min": 22.1, "temp_max": 27.9, "hum_min": 72.2, "hum_max": 89.2, "co2": 254.0},
+        {"hour": 18, "temp_min": 20.9, "temp_max": 26.2, "hum_min": 72.9, "hum_max": 89.5, "co2": 267.0},
+        {"hour": 19, "temp_min": 20.0, "temp_max": 24.9, "hum_min": 72.1, "hum_max": 89.1, "co2": 292.0},
+        {"hour": 20, "temp_min": 19.4, "temp_max": 24.1, "hum_min": 71.6, "hum_max": 89.0, "co2": 311.0},
+        {"hour": 21, "temp_min": 19.0, "temp_max": 23.6, "hum_min": 71.3, "hum_max": 88.8, "co2": 330.0},
+        {"hour": 22, "temp_min": 18.6, "temp_max": 23.1, "hum_min": 71.3, "hum_max": 88.8, "co2": 350.0},
+        {"hour": 23, "temp_min": 18.2, "temp_max": 22.5, "hum_min": 71.5, "hum_max": 88.7, "co2": 370.0},
+    ],
+    "11": [
+        {"hour": 0, "temp_min": 14.6, "temp_max": 17.1, "hum_min": 79.9, "hum_max": 92.1, "co2": 490.0},
+        {"hour": 1, "temp_min": 14.6, "temp_max": 17.1, "hum_min": 79.5, "hum_max": 92.0, "co2": 507.0},
+        {"hour": 2, "temp_min": 14.6, "temp_max": 17.1, "hum_min": 79.4, "hum_max": 92.0, "co2": 513.0},
+        {"hour": 3, "temp_min": 14.6, "temp_max": 17.1, "hum_min": 79.3, "hum_max": 91.9, "co2": 520.0},
+        {"hour": 4, "temp_min": 14.6, "temp_max": 17.3, "hum_min": 79.5, "hum_max": 91.9, "co2": 533.0},
+        {"hour": 5, "temp_min": 14.7, "temp_max": 17.4, "hum_min": 79.5, "hum_max": 91.7, "co2": 537.0},
+        {"hour": 6, "temp_min": 14.8, "temp_max": 17.5, "hum_min": 79.4, "hum_max": 91.4, "co2": 542.0},
+        {"hour": 7, "temp_min": 15.4, "temp_max": 18.3, "hum_min": 79.6, "hum_max": 91.4, "co2": 553.0},
+        {"hour": 8, "temp_min": 15.9, "temp_max": 19.0, "hum_min": 80.2, "hum_max": 91.4, "co2": 547.0},
+        {"hour": 9, "temp_min": 16.4, "temp_max": 19.8, "hum_min": 80.7, "hum_max": 91.4, "co2": 541.0},
+        {"hour": 10, "temp_min": 20.8, "temp_max": 25.4, "hum_min": 68.9, "hum_max": 86.7, "co2": 417.0},
+        {"hour": 11, "temp_min": 23.3, "temp_max": 28.6, "hum_min": 63.0, "hum_max": 84.8, "co2": 387.0},
+        {"hour": 12, "temp_min": 25.7, "temp_max": 31.7, "hum_min": 57.2, "hum_max": 82.9, "co2": 357.0},
+        {"hour": 13, "temp_min": 26.9, "temp_max": 33.2, "hum_min": 57.5, "hum_max": 83.0, "co2": 337.0},
+        {"hour": 14, "temp_min": 26.5, "temp_max": 32.7, "hum_min": 61.0, "hum_max": 83.5, "co2": 325.0},
+        {"hour": 15, "temp_min": 25.7, "temp_max": 31.7, "hum_min": 64.3, "hum_max": 84.0, "co2": 313.0},
+        {"hour": 16, "temp_min": 20.1, "temp_max": 26.1, "hum_min": 75.2, "hum_max": 91.6, "co2": 309.0},
+        {"hour": 17, "temp_min": 18.7, "temp_max": 23.3, "hum_min": 79.0, "hum_max": 92.7, "co2": 319.0},
+        {"hour": 18, "temp_min": 17.6, "temp_max": 21.9, "hum_min": 79.5, "hum_max": 92.9, "co2": 333.0},
+        {"hour": 19, "temp_min": 16.8, "temp_max": 20.8, "hum_min": 78.7, "hum_max": 92.5, "co2": 358.0},
+        {"hour": 20, "temp_min": 16.3, "temp_max": 20.2, "hum_min": 78.2, "hum_max": 92.4, "co2": 377.0},
+        {"hour": 21, "temp_min": 16.0, "temp_max": 19.8, "hum_min": 77.9, "hum_max": 92.2, "co2": 396.0},
+        {"hour": 22, "temp_min": 15.7, "temp_max": 19.4, "hum_min": 77.9, "hum_max": 92.2, "co2": 415.0},
+        {"hour": 23, "temp_min": 15.4, "temp_max": 19.0, "hum_min": 78.1, "hum_max": 92.1, "co2": 435.0},
+    ],
+    "12": [
+        {"hour": 0, "temp_min": 13.0, "temp_max": 15.2, "hum_min": 82.2, "hum_max": 93.9, "co2": 499.0},
+        {"hour": 1, "temp_min": 13.0, "temp_max": 15.2, "hum_min": 81.8, "hum_max": 93.8, "co2": 517.0},
+        {"hour": 2, "temp_min": 13.0, "temp_max": 15.2, "hum_min": 81.7, "hum_max": 93.8, "co2": 523.0},
+        {"hour": 3, "temp_min": 13.0, "temp_max": 15.2, "hum_min": 81.6, "hum_max": 93.7, "co2": 530.0},
+        {"hour": 4, "temp_min": 13.0, "temp_max": 15.4, "hum_min": 81.8, "hum_max": 93.7, "co2": 543.0},
+        {"hour": 5, "temp_min": 13.1, "temp_max": 15.5, "hum_min": 81.8, "hum_max": 93.5, "co2": 547.0},
+        {"hour": 6, "temp_min": 13.2, "temp_max": 15.6, "hum_min": 81.7, "hum_max": 93.2, "co2": 552.0},
+        {"hour": 7, "temp_min": 13.7, "temp_max": 16.3, "hum_min": 82.0, "hum_max": 93.2, "co2": 563.0},
+        {"hour": 8, "temp_min": 14.0, "temp_max": 16.8, "hum_min": 82.9, "hum_max": 93.2, "co2": 558.0},
+        {"hour": 9, "temp_min": 14.3, "temp_max": 17.2, "hum_min": 83.8, "hum_max": 93.2, "co2": 553.0},
+        {"hour": 10, "temp_min": 17.9, "temp_max": 21.9, "hum_min": 74.3, "hum_max": 89.8, "co2": 433.0},
+        {"hour": 11, "temp_min": 19.9, "temp_max": 24.2, "hum_min": 69.1, "hum_max": 88.2, "co2": 406.0},
+        {"hour": 12, "temp_min": 21.7, "temp_max": 26.4, "hum_min": 64.1, "hum_max": 86.6, "co2": 379.0},
+        {"hour": 13, "temp_min": 22.6, "temp_max": 27.5, "hum_min": 64.7, "hum_max": 86.7, "co2": 360.0},
+        {"hour": 14, "temp_min": 22.2, "temp_max": 27.0, "hum_min": 67.7, "hum_max": 87.2, "co2": 348.0},
+        {"hour": 15, "temp_min": 21.7, "temp_max": 26.4, "hum_min": 70.5, "hum_max": 87.7, "co2": 336.0},
+        {"hour": 16, "temp_min": 17.1, "temp_max": 22.0, "hum_min": 79.5, "hum_max": 93.9, "co2": 334.0},
+        {"hour": 17, "temp_min": 15.9, "temp_max": 19.7, "hum_min": 82.7, "hum_max": 94.9, "co2": 344.0},
+        {"hour": 18, "temp_min": 15.1, "temp_max": 18.7, "hum_min": 82.8, "hum_max": 95.0, "co2": 358.0},
+        {"hour": 19, "temp_min": 14.5, "temp_max": 17.9, "hum_min": 82.1, "hum_max": 94.7, "co2": 381.0},
+        {"hour": 20, "temp_min": 14.0, "temp_max": 17.3, "hum_min": 81.7, "hum_max": 94.6, "co2": 400.0},
+        {"hour": 21, "temp_min": 13.8, "temp_max": 17.0, "hum_min": 81.4, "hum_max": 94.4, "co2": 419.0},
+        {"hour": 22, "temp_min": 13.5, "temp_max": 16.6, "hum_min": 81.3, "hum_max": 94.3, "co2": 438.0},
+        {"hour": 23, "temp_min": 13.3, "temp_max": 16.3, "hum_min": 81.5, "hum_max": 94.3, "co2": 457.0},
+    ],
+}
+
+DEFAULT_ALERT_CONFIG = {
+    "temp":     {"enabled": True, "delay_min": 10, "deviation_pct": 0},
+    "humidity": {"enabled": True, "delay_min": 10, "deviation_pct": 0},
+    "co2":      {"enabled": True, "delay_min": 10, "deviation_pct": 10},
+}
+
+
+# ══════════════════════════════════════════════════════════
+# 가이드라인 파일 I/O
+# ══════════════════════════════════════════════════════════
+
+def _load_guidelines() -> dict:
+    if GUIDELINES_PATH.exists():
+        try:
+            d = json.loads(GUIDELINES_PATH.read_text(encoding="utf-8"))
+            if "data" in d and "alert_config" in d:
+                return d
+        except Exception:
+            pass
+    return {"data": DEFAULT_GUIDELINES, "alert_config": DEFAULT_ALERT_CONFIG}
+
+
+def _save_guidelines(payload: dict):
+    GUIDELINES_PATH.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+# ══════════════════════════════════════════════════════════
+# 알림 상태 및 저장
+# ══════════════════════════════════════════════════════════
+
+_alert_state: dict = {}  # { "zone_id:field": {"out_since": datetime|None, "alerted": bool} }
+
+
+def _save_alert(zone_id: str, field: str, value: float, range_min: float, range_max: float, ts: datetime):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "INSERT INTO alerts (ts, zone_id, field, value, range_min, range_max) VALUES (?,?,?,?,?,?)",
+        (ts.isoformat() + "Z", zone_id, field, value, range_min, range_max),
+    )
+    conn.commit()
+    conn.close()
+    print(f"[alert] {ts.isoformat()} zone={zone_id} field={field} val={value:.1f} range=[{range_min:.1f},{range_max:.1f}]")
+
+
+async def _alert_check_loop():
+    """백그라운드: 1분마다 가이드라인 이탈 여부를 체크해 alerts 테이블에 기록."""
+    while True:
+        await asyncio.sleep(ALERT_INTERVAL_SEC)
+        try:
+            now   = datetime.utcnow()
+            month = str(now.month)
+            hour  = now.hour
+            gl    = _load_guidelines()
+            rows  = gl["data"].get(month, [])
+            row   = next((r for r in rows if r["hour"] == hour), None)
+            if row is None:
+                continue
+            cfg = gl["alert_config"]
+
+            config = _load_zone_config()
+            for zone_id, zone in config.get("zones", {}).items():
+                ctrl_url = zone.get("controllerUrl")
+                if not ctrl_url:
+                    continue
+                data, _ = _fetch_real_url(ctrl_url)
+                if not data:
+                    continue
+                raw = _extract_raw(data)
+
+                def _fval(key):
+                    v = raw.get(key) or raw.get(key.lower())
+                    try:
+                        return float(v) if v not in (None, "") else None
+                    except (ValueError, TypeError):
+                        return None
+
+                co2_ref = row["co2"]
+                dev     = cfg["co2"].get("deviation_pct", 10) / 100
+                checks = [
+                    ("xintemp1", _fval("xintemp1"), row["temp_min"], row["temp_max"],   cfg["temp"]),
+                    ("xinhum1",  _fval("xinhum1"),  row["hum_min"],  row["hum_max"],    cfg["humidity"]),
+                    ("xco2",     _fval("xco2"),      co2_ref * (1 - dev), co2_ref * (1 + dev), cfg["co2"]),
+                ]
+
+                for field, val, lo, hi, acfg in checks:
+                    if not acfg.get("enabled", True) or val is None:
+                        continue
+                    key = f"{zone_id}:{field}"
+                    out = val < lo or val > hi
+                    state = _alert_state.get(key, {"out_since": None, "alerted": False})
+
+                    if out:
+                        if state["out_since"] is None:
+                            _alert_state[key] = {"out_since": now, "alerted": False}
+                        elif not state["alerted"]:
+                            elapsed_min = (now - state["out_since"]).total_seconds() / 60
+                            if elapsed_min >= acfg.get("delay_min", 10):
+                                _save_alert(zone_id, field, val, lo, hi, now)
+                                _alert_state[key]["alerted"] = True
+                    else:
+                        _alert_state[key] = {"out_since": None, "alerted": False}
+        except Exception as e:
+            print(f"[alert_check] 오류: {e}")
+
+
+# ══════════════════════════════════════════════════════════
 # SQLite 데이터 로깅
 # ══════════════════════════════════════════════════════════
 
@@ -150,6 +578,18 @@ def _init_db():
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ts    ON kpi_log(ts)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_zone  ON kpi_log(zone_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_field ON kpi_log(field)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS alerts (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts        TEXT NOT NULL,
+            zone_id   TEXT NOT NULL,
+            field     TEXT NOT NULL,
+            value     REAL,
+            range_min REAL,
+            range_max REAL
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_alert_ts ON alerts(ts)")
     conn.commit()
     conn.close()
 
@@ -214,6 +654,7 @@ async def _log_zone_data_loop():
 async def startup_event():
     _init_db()
     asyncio.create_task(_log_zone_data_loop())
+    asyncio.create_task(_alert_check_loop())
 
 
 # ══════════════════════════════════════════════════════════
@@ -323,6 +764,57 @@ def download_logs(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=kpi_log.csv"},
     )
+
+
+# ══════════════════════════════════════════════════════════
+# 가이드라인 API
+# ══════════════════════════════════════════════════════════
+
+@app.get("/api/guidelines")
+def get_guidelines():
+    """현재 가이드라인 전체 반환."""
+    return _load_guidelines()
+
+
+@app.post("/api/guidelines")
+async def post_guidelines(request: Request):
+    """가이드라인 + alert_config 저장."""
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="invalid body")
+    current = _load_guidelines()
+    if "data" in body:
+        current["data"] = body["data"]
+    if "alert_config" in body:
+        current["alert_config"] = body["alert_config"]
+    _save_guidelines(current)
+    return {"success": True}
+
+
+@app.post("/api/guidelines/reset")
+def reset_guidelines():
+    """DEFAULT_GUIDELINES로 초기화."""
+    _save_guidelines({"data": DEFAULT_GUIDELINES, "alert_config": DEFAULT_ALERT_CONFIG})
+    return {"success": True}
+
+
+@app.get("/api/alerts")
+def get_alerts(
+    zone_id: Optional[str] = None,
+    limit:   int = 50,
+):
+    """가이드라인 이탈 알림 이력 조회."""
+    conn = sqlite3.connect(DB_PATH)
+    q, params = "SELECT ts, zone_id, field, value, range_min, range_max FROM alerts WHERE 1=1", []
+    if zone_id:
+        q += " AND zone_id=?"; params.append(zone_id)
+    q += " ORDER BY ts DESC LIMIT ?"; params.append(limit)
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [
+        {"ts": r[0], "zone_id": r[1], "field": r[2], "value": r[3], "range_min": r[4], "range_max": r[5]}
+        for r in rows
+    ]
 
 
 # ══════════════════════════════════════════════════════════
