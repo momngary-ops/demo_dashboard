@@ -100,9 +100,12 @@ async function fetchZoneData(zoneId) {
 async function fetchKpi(cfg, zoneId) {
   const source = Object.entries(API_SOURCE)
     .find(([, ids]) => ids.includes(cfg.id))?.[0]
-  if (!source) return null
 
-  if (source === 'CLIMATE') {
+  // API_SOURCE에 없는 동적 필드(xintemp2 등)는 CLIMATE 캐시에서 fallback 조회
+  const effectiveSource = source ?? (zoneId ? 'CLIMATE' : null)
+  if (!effectiveSource) return null
+
+  if (effectiveSource === 'CLIMATE') {
     const zoneData = await fetchZoneData(zoneId)
     const value    = zoneData?.fields?.[cfg.id?.toLowerCase()] ?? null
     _addHistory(cfg.id, value)
