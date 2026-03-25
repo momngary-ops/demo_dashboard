@@ -265,7 +265,7 @@
   position: relative;
   padding: 0 12px 4px;
   overflow: hidden;
-  color: var(--accent);   /* SVG currentColor 소스 — 색상 정책 도입 시 이 한 줄만 변경 */
+  color: #6AC8C7;   /* SVG currentColor 기본값 — JS sparkColor로 상태별 override */
 }
 
 .cm-sparkline__svg {

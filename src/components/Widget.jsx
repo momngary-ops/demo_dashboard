@@ -94,8 +94,8 @@ function SparklineSVG({ data, bandMin, bandMax }) {
           <rect
             x={PAD} y={Math.min(by1, by2)}
             width={W - PAD * 2} height={bh}
-            fill="rgba(74,222,128,0.12)"
-            stroke="rgba(74,222,128,0.4)"
+            fill="rgba(106,200,199,0.13)"
+            stroke="rgba(106,200,199,0.5)"
             strokeWidth="0.8"
             strokeDasharray="4 3"
           />
@@ -238,8 +238,15 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
   const hideSpark = isCompact
   const hideRow2  = isCompact || (gridSize && gridSize.h < 3 && gridSize.w < 4)
 
-  // 신호등 dot — 임계값 미설정 시 회색
-  const signalColor = isCrit ? '#f87171' : isWarn ? '#fb923c' : '#3f607a'
+  // 신호등 dot — 대동 브랜드 색상 정책
+  // 정상: Future Green Light / 경고: 앰버 / 심각·오류: Daedong Red / 미연결: 그레이
+  const signalColor =
+    (isCrit || status === 'SENSOR_FAULT')  ? '#EF4023' :
+    isWarn                                  ? '#fb923c' :
+    status === 'OUT_OF_RANGE'              ? '#f59e0b' :
+    status === 'OK'                         ? '#6AC8C7' :
+    status === 'SENSOR_LOST'              ? '#9E9F9C' :
+    '#4a5a7a'
 
   // delta / trend (row1)
   const row1 = subRows[0]
@@ -298,7 +305,20 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
     )
   }
 
-  const valueColor = isCrit ? '#f87171' : isWarn ? '#fb923c' : 'var(--text-primary)'
+  const valueColor =
+    (isCrit || status === 'SENSOR_FAULT') ? '#EF4023' :
+    isWarn                                 ? '#fb923c' :
+    status === 'OUT_OF_RANGE'             ? '#f59e0b' :
+    'var(--text-primary)'
+
+  // 스파크라인 색 — 상태별 분리 (정상은 Future Green Light, 문제시에만 빨강)
+  const sparkColor =
+    (isCrit || status === 'SENSOR_FAULT') ? '#EF4023' :
+    isWarn                                 ? '#fb923c' :
+    status === 'OUT_OF_RANGE'             ? '#f59e0b' :
+    status === 'OK'                        ? '#6AC8C7' :
+    status === 'SENSOR_LOST'             ? '#9E9F9C' :
+    '#4a5a7a'
 
   return (
     <div className={`chart-main${hideSpark ? ' chart-main--compact' : ''}`}>
@@ -355,7 +375,7 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
         const dMin = Math.min(...data)
         const hasRange = dMax !== dMin
         return (
-          <div className="cm-spark-area">
+          <div className="cm-spark-area" style={{ color: sparkColor }}>
             <SparklineSVG data={data} bandMin={bandMin} bandMax={bandMax} />
             {hasRange && <>
               <span className="cm-spark-label cm-spark-label--max">
@@ -491,7 +511,11 @@ function StatWidget({ config, kpiSlot, candidate, gridSize }) {
   const showRange = rangePct !== null && !isXS && gridSize?.h >= 4
   const showIcon  = icon && !isXS
 
-  const valueColor = isCrit ? '#f87171' : isWarn ? '#fb923c' : 'var(--text-primary)'
+  const valueColor =
+    (isCrit || status === 'SENSOR_FAULT') ? '#EF4023' :
+    isWarn                                 ? '#fb923c' :
+    status === 'OUT_OF_RANGE'             ? '#f59e0b' :
+    'var(--text-primary)'
 
   if (isLoading) {
     return (
