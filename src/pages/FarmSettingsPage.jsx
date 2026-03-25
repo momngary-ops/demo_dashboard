@@ -93,7 +93,7 @@ export default function FarmSettingsPage() {
   const [saved,  setSaved]  = useState(false)
   const [pendingDeleteId,  setPendingDeleteId]  = useState(null)
   const [zoneModalTarget,  setZoneModalTarget]  = useState(undefined) // undefined=닫힘, null=신규, zone=수정
-  const { zoneCapabilities, refetchZone } = useCapabilities()
+  const { zoneCapabilities, refetchZone, updateZoneAvailable } = useCapabilities()
 
   const update = (key, value) => { setSaved(false); setConfig(prev => ({ ...prev, [key]: value })) }
 
@@ -110,6 +110,8 @@ export default function FarmSettingsPage() {
       }
     })
     setZoneModalTarget(undefined)
+    // zoneCapabilities 즉시 동기화 → KPI 모달 isAvailable 반영
+    updateZoneAvailable(updatedZone.id, updatedZone.apiConfig?.availableFields ?? [])
   }
 
   const handleZoneDeleteConfirm = () => {

@@ -106,6 +106,14 @@ export function CapabilitiesProvider({ children }) {
 
   const dynamicCandidates = useMemo(() => buildDynamicCandidates(capabilities), [capabilities])
 
+  /** 구역 저장 후 즉시 zoneCapabilities 반영 (서버 재요청 없이) */
+  const updateZoneAvailable = useCallback((zoneId, fields) => {
+    setZoneCapabilities(prev => ({
+      ...prev,
+      [zoneId]: { ...(prev[zoneId] ?? {}), available: fields, loading: false, lastFetched: new Date(), error: null },
+    }))
+  }, [])
+
   return (
     <CapabilitiesContext.Provider value={{
       capabilities,
@@ -113,8 +121,9 @@ export function CapabilitiesProvider({ children }) {
       loading,
       lastFetched,
       dynamicCandidates,
-      refetch:     fetchCapabilities,
+      refetch:             fetchCapabilities,
       refetchZone,
+      updateZoneAvailable,
     }}>
       {children}
     </CapabilitiesContext.Provider>
