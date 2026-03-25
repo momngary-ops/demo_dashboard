@@ -54,6 +54,38 @@ function _getSparkline(id) {
   )
 }
 
+/** SQLite 로그에서 과거 이력 로드 → _kpiHistory 선채우기 */
+async function _loadHistoryFromDB(slotConfigs, zoneId) {
+  if (!zoneId) return
+  const fields = slotConfigs.filter(c => c.id).map(c => c.id.toLowerCase())
+  await Promise.allSettled(fields.map(async (fieldId) => {
+    try {
+      const res = await fetch(
+        `/api/logs?zone_id=${encodeURIComponent(zoneId)}&field=${encodeURIComponent(fieldId)}&limit=${SPARK_POINTS}`,
+        { signal: AbortSignal.timeout(5_000) }
+      )
+      if (!res.ok) return
+      const rows = await res.json()
+      if (!rows.length) return
+      // DESC → ASC 정렬 후 _kpiHistory에 병합 (중복 ts 제외)
+      const sorted = [...rows].reverse()
+      if (!_kpiHistory[fieldId]) _kpiHistory[fieldId] = []
+      const existingTs = new Set(_kpiHistory[fieldId].map(p => p.ts))
+      for (const row of sorted) {
+        const ts = new Date(row.ts).getTime()
+        if (!existingTs.has(ts) && row.value !== null) {
+          _kpiHistory[fieldId].push({ value: Number(row.value), ts })
+        }
+      }
+      _kpiHistory[fieldId].sort((a, b) => a.ts - b.ts)
+      const cutoff = Date.now() - HISTORY_MS
+      _kpiHistory[fieldId] = _kpiHistory[fieldId].filter(p => p.ts >= cutoff)
+    } catch {
+      // 이력 로드 실패는 비치명적 — 실시간 폴링으로 대체
+    }
+  }))
+}
+
 /** minutesAgo 분 전 값 — delta 계산용 */
 function _getPrevValue(id, minutesAgo) {
   const hist = _kpiHistory[id]
@@ -217,7 +249,9 @@ export function useKpiPolling(slotConfigs, zoneId = null, refreshKey = 0) {
               : { ...cfg, value: null, data: [], dataStatus: cfg.id ? 'API_TIMEOUT' : 'NO_API', lastReceivedAt: undefined }
           )
         ))
-    load()
+
+    // 과거 이력 선채우기 후 첫 폴링 → 스파크라인에 즉시 반영
+    _loadHistoryFromDB(slotConfigs, effectiveZoneId).finally(load)
     const timer = setInterval(load, POLLING.KPI_INTERVAL_MS)
     return () => clearInterval(timer)
   }, [configKey, effectiveZoneId, zoneAvailable]) // eslint-disable-line
