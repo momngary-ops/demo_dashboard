@@ -17,7 +17,9 @@ export function resolveKpiStatus(apiId, value, lastReceivedAt, yMin, yMax, isAva
   if (ageMs > POLLING.STALE_WARN_MS) return 'STALE_WARN'
 
   if (value === null || value === undefined) return 'NULL_DATA'
-  if (value < SENSOR_FAULT_BOUNDS.min || value > SENSOR_FAULT_BOUNDS.max) return 'SENSOR_FAULT'
+  // yMax가 null(상한 없음)인 센서는 상한 SENSOR_FAULT 체크 스킵 (누적값 등)
+  const faultUpper = yMax !== null && yMax !== undefined ? SENSOR_FAULT_BOUNDS.max : Infinity
+  if (value < SENSOR_FAULT_BOUNDS.min || value > faultUpper) return 'SENSOR_FAULT'
 
   if (yMin !== null && yMin !== undefined && yMax !== null && yMax !== undefined) {
     if (value < yMin || value > yMax) return 'OUT_OF_RANGE'
