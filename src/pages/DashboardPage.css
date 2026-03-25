@@ -45,6 +45,14 @@
   color: var(--text-primary);
   border-color: var(--accent);
 }
+.toolbar-btn--refreshing {
+  opacity: 0.65;
+  cursor: default;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
 .toolbar-btn--primary {
   background: var(--accent);
   color: #fff;

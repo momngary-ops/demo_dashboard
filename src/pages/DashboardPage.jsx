@@ -14,9 +14,9 @@
  *     (현재: DEFAULT_LAYOUT / DEFAULT_WIDGETS 클라이언트 고정값)
  *   - 구성원별 개인 커스터마이징 필요 시 별도 [개인 대시보드] 페이지로 분리
  */
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import AdminPasswordModal from '../components/AdminPasswordModal'
-import { useKpiPolling } from '../hooks/useKpiPolling'
+import { useKpiPolling, clearZoneCache } from '../hooks/useKpiPolling'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
 import GridLayout from 'react-grid-layout/legacy'
@@ -126,6 +126,9 @@ export default function DashboardPage() {
   const [pendingRemoveId, setPendingRemoveId] = useState(null)
   const [isResizing, setIsResizing]   = useState(false)
   const [bannerCompact, setBannerCompact] = useState(false)
+  const [refreshKey,   setRefreshKey]  = useState(0)
+  const [refreshing,   setRefreshing]  = useState(false)
+  const refreshTimer = useRef(null)
   const [containerWidth, setContainerWidth] = useState(
     window.innerWidth - 200
   )
@@ -140,6 +143,14 @@ export default function DashboardPage() {
   }, [])
 
   const handleLayoutChange = (newLayout) => setLayout(newLayout)
+
+  const handleRefresh = () => {
+    clearZoneCache()
+    setRefreshKey(k => k + 1)
+    setRefreshing(true)
+    clearTimeout(refreshTimer.current)
+    refreshTimer.current = setTimeout(() => setRefreshing(false), 1200)
+  }
 
   const handleRemoveWidgetConfirm = () => {
     setLayout(prev => prev.filter(l => l.i !== pendingRemoveId))
@@ -171,7 +182,7 @@ export default function DashboardPage() {
       .map(w => allCandidates.find(c => c.id === w.kpiId) ?? { id: w.kpiId, title: w.title }),
     [widgets, allCandidates]
   )
-  const widgetKpiSlots = useKpiPolling(widgetSlotConfigs, firstZoneId)
+  const widgetKpiSlots = useKpiPolling(widgetSlotConfigs, firstZoneId, refreshKey)
   const kpiSlotMap = Object.fromEntries(widgetKpiSlots.map(s => [s.id, s]))
 
   // C: 위젯별 현재 grid 크기 맵
@@ -191,28 +202,37 @@ export default function DashboardPage() {
       {/* 툴바 — 편집 기능은 관리자(isAdmin)만 노출 */}
       <div className="dashboard__toolbar">
         <span className="dashboard__title">Dashboard</span>
-        {isAdmin && (
-          <div className="dashboard__actions">
-            <button
-              className={`toolbar-btn ${editMode ? 'toolbar-btn--active' : ''}`}
-              onClick={() => {
-                if (editMode) {
-                  // 편집 완료 — 현재 레이아웃·위젯 상태를 localStorage에 저장
-                  saveToStorage(STORAGE_KEY_LAYOUT,  layout)
-                  saveToStorage(STORAGE_KEY_WIDGETS, widgets)
-                }
-                setEditMode(v => !v)
-              }}
-            >
-              {editMode ? '편집 완료' : '레이아웃 편집'}
-            </button>
-            {editMode && (
-              <button className="toolbar-btn toolbar-btn--primary" onClick={() => setPickerOpen(true)}>
-                + 위젯 추가
+        <div className="dashboard__actions">
+          <button
+            className={`toolbar-btn ${refreshing ? 'toolbar-btn--refreshing' : ''}`}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="데이터 새로고침"
+          >
+            {refreshing ? '🔄' : '↻'} 새로고침
+          </button>
+          {isAdmin && (
+            <>
+              <button
+                className={`toolbar-btn ${editMode ? 'toolbar-btn--active' : ''}`}
+                onClick={() => {
+                  if (editMode) {
+                    saveToStorage(STORAGE_KEY_LAYOUT,  layout)
+                    saveToStorage(STORAGE_KEY_WIDGETS, widgets)
+                  }
+                  setEditMode(v => !v)
+                }}
+              >
+                {editMode ? '편집 완료' : '레이아웃 편집'}
               </button>
-            )}
-          </div>
-        )}
+              {editMode && (
+                <button className="toolbar-btn toolbar-btn--primary" onClick={() => setPickerOpen(true)}>
+                  + 위젯 추가
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* 헤드 위젯 */}

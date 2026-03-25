@@ -130,8 +130,9 @@ function buildSlot(cfg, raw, zoneAvailable = null) {
  *
  * @param {Array}  slotConfigs  — KPI 슬롯 설정 배열 [{ id, title, ... }]
  * @param {string} [zoneId]     — 대상 구역 ID. 생략 시 첫 번째 연결 구역 자동 선택.
+ * @param {number} [refreshKey] — 수동 새로고침 트리거. 값이 바뀌면 캐시 무시 즉시 재조회.
  */
-export function useKpiPolling(slotConfigs, zoneId = null) {
+export function useKpiPolling(slotConfigs, zoneId = null, refreshKey = 0) {
   const { capabilities, zoneCapabilities } = useCapabilities()
 
   const effectiveZoneId = zoneId
@@ -154,7 +155,7 @@ export function useKpiPolling(slotConfigs, zoneId = null) {
 
   const [slots, setSlots] = useState(() => buildSlots(slotConfigs))
 
-  const configKey = slotConfigs.map(c => c.id ?? 'null').join(',')
+  const configKey = slotConfigs.map(c => c.id ?? 'null').join(',') + '|' + refreshKey
   useEffect(() => {
     setSlots(buildSlots(slotConfigs))
     const load = () =>
