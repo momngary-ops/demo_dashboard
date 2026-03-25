@@ -28,10 +28,18 @@ function fmtVal(value) {
   return Number(value).toFixed(1)
 }
 
+const STORAGE_KEY_BANNER_SLOTS = 'topbanner:slots'
+
 export default function TopBanner({ compact = false, onToggleCompact }) {
   const [farmConfig]   = useState(loadFarmConfig)
   const [activeZone,   setActiveZone]   = useState(0)
-  const [slotConfigs,  setSlotConfigs]  = useState(DEFAULT_SLOT_CONFIGS)
+  const [slotConfigs,  setSlotConfigs]  = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_BANNER_SLOTS)
+      if (raw) return JSON.parse(raw)
+    } catch { /* 무시 */ }
+    return DEFAULT_SLOT_CONFIGS
+  })
   const [pickerOpen,   setPickerOpen]   = useState(false)
 
   const activeZoneId = farmConfig.zones[activeZone]?.id ?? null
@@ -117,7 +125,10 @@ export default function TopBanner({ compact = false, onToggleCompact }) {
         <KpiSelectorModal
           slots={slotConfigs}
           kpiSlots={kpiSlots}
-          onSlotsChange={setSlotConfigs}
+          onSlotsChange={(next) => {
+            setSlotConfigs(next)
+            try { localStorage.setItem(STORAGE_KEY_BANNER_SLOTS, JSON.stringify(next)) } catch { /* 무시 */ }
+          }}
           onClose={() => setPickerOpen(false)}
         />
       )}

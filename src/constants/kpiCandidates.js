@@ -309,7 +309,7 @@ export const CHART_MAIN_CANDIDATES = KPI_CANDIDATES.filter(c => c.cardType === '
 export const DEFAULT_SLOT_CONFIGS = [
   ENV.find(c => c.id === 'xintemp1'),       // 내부온도
   ENV.find(c => c.id === 'xinhum1'),        // 내부습도
-  ENV.find(c => c.id === 'xco2'),           // CO2
-  NUTRIENT.find(c => c.id === 'now_ec'),    // 급액 EC
-  NUTRIENT.find(c => c.id === 'water_con'), // 함수율
+  ENV.find(c => c.id === 'xco2'),           // CO₂ 농도
+  ENV.find(c => c.id === 'xinsunadd'),      // 내부 누적일사량
+  ENV.find(c => c.id === 'xhumlack'),       // VPD
 ]
