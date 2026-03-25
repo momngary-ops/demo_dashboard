@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CROP_SCHEMA, DEFAULT_FARM_CONFIG, loadFarmConfig, saveFarmConfig } from '../constants/farmSchema'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
+import { clearZoneCache } from '../hooks/useKpiPolling'
 import AdminPasswordModal from '../components/AdminPasswordModal'
 import ZoneApiModal from '../components/ZoneApiModal'
 import './FarmSettingsPage.css'
@@ -102,14 +103,18 @@ export default function FarmSettingsPage() {
     setSaved(false)
     setConfig(prev => {
       const exists = prev.zones.some(z => z.id === updatedZone.id)
-      return {
+      const next = {
         ...prev,
         zones: exists
           ? prev.zones.map(z => z.id === updatedZone.id ? updatedZone : z)
           : [...prev.zones, updatedZone],
       }
+      saveFarmConfig(next)  // 구역 변경은 즉시 localStorage에 반영
+      return next
     })
     setZoneModalTarget(undefined)
+    // 모듈 캐시 무효화 → 다음 폴링에서 제어기+양액기 데이터 즉시 재조회
+    clearZoneCache(updatedZone.id)
     // zoneCapabilities 즉시 동기화 → KPI 모달 isAvailable 반영
     updateZoneAvailable(updatedZone.id, updatedZone.apiConfig?.availableFields ?? [])
   }

@@ -10,6 +10,17 @@ const _zoneCache   = {}  // { [zoneId]: { fields: {}, ts: number, lastReceivedAt
 const _zonePending = {}  // { [zoneId]: Promise }
 const CACHE_TTL    = 28_000  // 28초 (폴링 30초보다 약간 짧게)
 
+/** 구역 캐시 강제 무효화 — 구역 설정 변경 후 즉시 재조회 필요할 때 호출 */
+export function clearZoneCache(zoneId) {
+  if (zoneId) {
+    delete _zoneCache[zoneId]
+    delete _zonePending[zoneId]
+  } else {
+    Object.keys(_zoneCache).forEach(k => delete _zoneCache[k])
+    Object.keys(_zonePending).forEach(k => delete _zonePending[k])
+  }
+}
+
 // ── 스파크라인 이력 ────────────────────────────────────────────────────────────
 // 폴링마다 수신한 값을 누적 → 3시간치 보관 → 20포인트 다운샘플링 후 스파크라인 전달
 const _kpiHistory  = {}            // { [kpiId]: Array<{ value: number, ts: number }> }

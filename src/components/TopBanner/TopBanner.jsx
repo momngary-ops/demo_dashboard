@@ -34,9 +34,11 @@ export default function TopBanner({ compact = false, onToggleCompact }) {
   const [slotConfigs,  setSlotConfigs]  = useState(DEFAULT_SLOT_CONFIGS)
   const [pickerOpen,   setPickerOpen]   = useState(false)
 
+  const activeZoneId = farmConfig.zones[activeZone]?.id ?? null
+
   const weather      = useWeatherPolling()
-  const kpiSlots     = useKpiPolling(slotConfigs)
-  const extTempSlots = useKpiPolling(EXT_TEMP_CONFIG)
+  const kpiSlots     = useKpiPolling(slotConfigs,      activeZoneId)
+  const extTempSlots = useKpiPolling(EXT_TEMP_CONFIG,  activeZoneId)
   const extTemp      = extTempSlots[0]
 
   // compact 바에 표시할 KPI 슬롯 (정상 데이터 있는 것만)

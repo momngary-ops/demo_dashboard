@@ -155,8 +155,14 @@ export default function DashboardPage() {
     setPickerOpen(false)
   }
 
-  const { dynamicCandidates } = useCapabilities()
+  const { dynamicCandidates, zoneCapabilities } = useCapabilities()
   const allCandidates = useMemo(() => [...KPI_CANDIDATES, ...dynamicCandidates], [dynamicCandidates])
+
+  // 첫 번째 연결된 구역 ID 사용 (대시보드는 구역 탭 없음)
+  const firstZoneId = useMemo(
+    () => Object.keys(zoneCapabilities).find(id => zoneCapabilities[id]?.available?.length > 0) ?? null,
+    [zoneCapabilities]
+  )
 
   // 위젯 KPI 폴링 — kpiId 있는 위젯만 수집 후 일괄 폴링
   const widgetSlotConfigs = useMemo(() =>
@@ -165,7 +171,7 @@ export default function DashboardPage() {
       .map(w => allCandidates.find(c => c.id === w.kpiId) ?? { id: w.kpiId, title: w.title }),
     [widgets, allCandidates]
   )
-  const widgetKpiSlots = useKpiPolling(widgetSlotConfigs)
+  const widgetKpiSlots = useKpiPolling(widgetSlotConfigs, firstZoneId)
   const kpiSlotMap = Object.fromEntries(widgetKpiSlots.map(s => [s.id, s]))
 
   // C: 위젯별 현재 grid 크기 맵
