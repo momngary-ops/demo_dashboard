@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { KPI_CANDIDATES } from '../../constants/kpiCandidates'
 import { useCapabilities } from '../../contexts/CapabilitiesContext'
+import { useKpiPolling } from '../../hooks/useKpiPolling'
 import './KpiSelectorModal.css'
 
 function fmt(v) {
@@ -50,6 +51,18 @@ export default function KpiSelectorModal({ slots, kpiSlots = [], onSlotsChange, 
   )
   // 구역이 하나도 없으면 전체 비활성, 있으면 availableFields 기준
   const isAvailable = (id) => allAvailableIds.size > 0 && allAvailableIds.has(id)
+
+  // 연결된 KPI 전체 폴링 — 모달에서 실제 값 미리보기
+  // zone 캐시를 공유하므로 추가 네트워크 요청 없음
+  const availableCandidates = useMemo(
+    () => allCandidates.filter(c => isAvailable(c.id)),
+    [allAvailableIds.size] // eslint-disable-line
+  )
+  const allLiveSlots = useKpiPolling(availableCandidates)
+  const allLiveSlotMap = useMemo(
+    () => Object.fromEntries(allLiveSlots.map(s => [s.id, s])),
+    [allLiveSlots]
+  )
 
   const [localSlots, setLocalSlots] = useState(slots)
 
@@ -119,7 +132,7 @@ export default function KpiSelectorModal({ slots, kpiSlots = [], onSlotsChange, 
                   const isActive = activeIds.some(
                     (id, idx) => id === c.id && localSlots[idx].title === c.title
                   )
-                  const liveSlot = kpiSlots.find(s => s.id === c.id)
+                  const liveSlot = allLiveSlotMap[c.id] ?? kpiSlots.find(s => s.id === c.id)
                   return (
                     <CandidateCard
                       key={`${cat}-${i}`}
