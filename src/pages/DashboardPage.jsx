@@ -16,6 +16,7 @@
  */
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import AdminPasswordModal from '../components/AdminPasswordModal'
+import { loadFarmConfig } from '../constants/farmSchema'
 import { useKpiPolling, clearZoneCache } from '../hooks/useKpiPolling'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import { GAUGE_SET_GROUPS, STATUS_PANEL_GROUPS } from '../constants/actuatorCandidates'
@@ -166,6 +167,8 @@ export default function DashboardPage() {
   const [pickerOpen, setPickerOpen]   = useState(false)
   const [pendingRemoveId, setPendingRemoveId] = useState(null)
   const [isResizing, setIsResizing]   = useState(false)
+  const [farmConfig]   = useState(loadFarmConfig)
+  const [activeZone,   setActiveZone]   = useState(0)
   const [bannerCompact, setBannerCompact] = useState(false)
   const [refreshKey,   setRefreshKey]  = useState(0)
   const [refreshing,   setRefreshing]  = useState(false)
@@ -273,11 +276,8 @@ export default function DashboardPage() {
     [allCandidates]
   )
 
-  // 첫 번째 연결된 구역 ID 사용 (대시보드는 구역 탭 없음)
-  const firstZoneId = useMemo(
-    () => Object.keys(zoneCapabilities).find(id => zoneCapabilities[id]?.available?.length > 0) ?? null,
-    [zoneCapabilities]
-  )
+  // 선택된 구역 ID — TopBanner 탭과 동기화
+  const activeZoneId = farmConfig.zones[activeZone]?.id ?? null
 
   // 전체 연결된 ID Set — WidgetPicker·Widget 양쪽에 전달
   const allAvailableIds = useMemo(
@@ -292,7 +292,7 @@ export default function DashboardPage() {
       .map(w => allCandidates.find(c => c.id === w.kpiId) ?? { id: w.kpiId, title: w.title }),
     [widgets, allCandidates]
   )
-  const widgetKpiSlots = useKpiPolling(widgetSlotConfigs, firstZoneId, refreshKey)
+  const widgetKpiSlots = useKpiPolling(widgetSlotConfigs, activeZoneId, refreshKey)
   const kpiSlotMap = Object.fromEntries(widgetKpiSlots.map(s => [s.id, s]))
 
   // 서브로우 secondary KPI 폴링 + chart overlay ID 포함
@@ -314,7 +314,7 @@ export default function DashboardPage() {
     return [...ids].map(id => allCandidates.find(c => c.id === id) ?? { id })
   }, [widgets, candidateMap, allCandidates])
 
-  const secondaryKpiSlots = useKpiPolling(secondarySlotConfigs, firstZoneId, refreshKey)
+  const secondaryKpiSlots = useKpiPolling(secondarySlotConfigs, activeZoneId, refreshKey)
   const secondarySlotMap  = Object.fromEntries(secondaryKpiSlots.map(s => [s.id, s]))
 
   // 구동기 폴링 — gauge-set / status-panel 위젯이 쓰는 ID만 수집
@@ -336,7 +336,7 @@ export default function DashboardPage() {
     return [...ids].map(id => ({ id }))
   }, [widgets])
 
-  const actuatorKpiSlots = useKpiPolling(actuatorSlotConfigs, firstZoneId, refreshKey)
+  const actuatorKpiSlots = useKpiPolling(actuatorSlotConfigs, activeZoneId, refreshKey)
   const actuatorSlotMap  = Object.fromEntries(actuatorKpiSlots.map(s => [s.id, s]))
 
   // C: 위젯별 현재 grid 크기 맵
@@ -394,6 +394,9 @@ export default function DashboardPage() {
       <TopBanner
         compact={bannerCompact}
         onToggleCompact={() => setBannerCompact(v => !v)}
+        farmConfig={farmConfig}
+        activeZone={activeZone}
+        onZoneChange={setActiveZone}
       />
 
       {/* 그리드 영역 */}

@@ -31,9 +31,11 @@ function fmtVal(value) {
 
 const STORAGE_KEY_BANNER_SLOTS = 'topbanner:slots'
 
-export default function TopBanner({ compact = false, onToggleCompact }) {
-  const [farmConfig]   = useState(loadFarmConfig)
-  const [activeZone,   setActiveZone]   = useState(0)
+export default function TopBanner({ compact = false, onToggleCompact, farmConfig: farmConfigProp, activeZone: activeZoneProp, onZoneChange }) {
+  const [farmConfigLocal] = useState(loadFarmConfig)
+  const farmConfig  = farmConfigProp ?? farmConfigLocal
+  const activeZone  = activeZoneProp ?? 0
+  const setActiveZone = onZoneChange ?? (() => {})
   const [slotConfigs,  setSlotConfigs]  = useState(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_BANNER_SLOTS)
