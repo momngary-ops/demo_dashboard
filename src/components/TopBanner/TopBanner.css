@@ -347,6 +347,7 @@
   flex-direction: column;
   gap: 3px;
   transition: opacity 0.3s;
+  overflow: hidden;
 }
 
 .var-card__header {
@@ -378,9 +379,8 @@
 }
 
 .var-card__spark {
-  flex: 1;
-  min-height: 20px;
-  max-height: 28px;
+  height: 28px;
+  flex-shrink: 0;
   opacity: 0.75;
 }
 
