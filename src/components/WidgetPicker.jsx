@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { X, ChevronDown, ChevronRight } from 'lucide-react'
-import { KPI_CANDIDATES } from '../constants/kpiCandidates'
+import { KPI_CANDIDATES, CHART_MAIN_CANDIDATES } from '../constants/kpiCandidates'
 import { GAUGE_SET_GROUPS, STATUS_PANEL_GROUPS } from '../constants/actuatorCandidates'
 import { WIDGET_GROUPS } from '../constants/widgetGroups'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
@@ -144,6 +144,37 @@ export default function WidgetPicker({ onAdd, onClose }) {
               </div>
             </div>
           ))}
+
+          {/* ── 멀티 라인 차트 ── */}
+          <div className="picker__section">
+            <div className="picker__section-title">📈 멀티 라인 차트</div>
+            <p className="picker__section-desc">기준 KPI를 선택 후 오버레이로 여러 항목 비교</p>
+            <div className="picker__grid">
+              {CHART_MAIN_CANDIDATES.map(c => {
+                const avail = isAvailable(c.id)
+                const live  = liveMap[c.id]
+                const val   = avail && live?.value != null
+                  ? (live.value >= 10000 ? live.value.toLocaleString()
+                    : Number.isInteger(live.value) ? String(live.value)
+                    : live.value.toFixed(1))
+                  : null
+                return (
+                  <button
+                    key={c.id}
+                    className={`picker__item ${!avail ? 'picker__item--noapi' : ''}`}
+                    onClick={() => avail && onAdd({ type: 'chart', kpiId: c.id, title: c.title, unit: c.unit })}
+                    title={!avail ? '미연결' : c.title}
+                  >
+                    {c.icon} {c.title}
+                    {val !== null
+                      ? <span className="picker__item-val">{val} {c.unit}</span>
+                      : !avail && <span className="picker__item-badge">미연결</span>
+                    }
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
           {/* ── KPI 센서 지표 (카테고리별, 접기/펼치기) ── */}
           {Object.entries(kpiByCat).map(([cat, items]) => (
