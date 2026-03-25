@@ -12,7 +12,7 @@ export const POLLING = {
 // mock_data_server.py의 _CLIMATE_FIELDS / _FM_FIELDS / _GROWTH_*_FIELDS / _LABOR_FIELDS 와 일치
 export const API_SOURCE = {
   CLIMATE: [
-    'xouttemp', 'xwindsp', 'xsunvol', 'xsunadd', 'sunvol', 'sunadd',
+    'xouttemp', 'xwinddirec', 'xwindsp', 'xsunvol', 'xsunadd', 'sunvol', 'sunadd',
     'xgndtemp', 'xgndhum', 'xintemp1', 'in_temp', 'xinhum1', 'in_hum',
     'xco2', 'xco2set', 'xinsunvol', 'xinsunadd', 'xsthum', 'xabhum', 'xhumlack',
     'xdhum', 'xventtemp1', 'xheattemp1', 'now_ec', 'now_ph', 'set_ec',

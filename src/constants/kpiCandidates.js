@@ -113,10 +113,26 @@ const ENV = [
     data_no: '010',
   },
   {
-    id: 'xwindsp',    title: '풍속',         unit: 'm/s',
+    id: 'xwinddirec', title: '외부 풍향',    unit: '°',
+    icon: '🧭', bgColor: 'rgba(99,102,241,0.45)',
+    yMin: 0,   yMax: 360,  category: '환경·제어',
+    data_no: '004',
+    cardType: 'chart-main',
+    displayType: 'compass8',
+    subRows: [
+      { label: '현재 풍향', showTrend: false, showDelta: false },
+    ],
+  },
+  {
+    id: 'xwindsp',    title: '외부 풍속',    unit: 'm/s',
     icon: '💨', bgColor: 'rgba(99,102,241,0.5)',
     yMin: 0,   yMax: 15,   category: '환경·제어',
     data_no: '005',
+    cardType: 'chart-main',
+    subRows: [
+      { label: '현재 풍속', showTrend: true, showDelta: true, deltaWindowMin: 30 },
+      { label: '최고 / 최저', type: 'sparkline-range' },
+    ],
   },
   {
     id: 'xsunvol',    title: '외부 일사량',  unit: 'W/m²',
@@ -302,6 +318,25 @@ export const KPI_CANDIDATES = [...ENV, ...ENV_SECONDARY, ...NUTRIENT, ...GROWTH,
 
 /** chart-main 타입 KPI만 — WidgetPicker 카드메인 섹션용 */
 export const CHART_MAIN_CANDIDATES = KPI_CANDIDATES.filter(c => c.cardType === 'chart-main')
+
+// ─────────────────────────────────────────────
+// 계산 위젯 정의 — 두 KPI 값의 연산 결과
+// ─────────────────────────────────────────────
+export const COMPUTED_WIDGETS = [
+  {
+    id:          'heat_load',
+    title:       '난방부하도',
+    description: '난방설정온도 − 외부온도',
+    icon:        '🔥',
+    unit:        '°C',
+    kpiId:       'xheattemp1',
+    kpiId2:      'xouttemp',
+    formula:     'subtract',
+    yMin:        -10,
+    yMax:        25,
+    category:    '계산값',
+  },
+]
 
 /**
  * 기본 활성 슬롯 5개

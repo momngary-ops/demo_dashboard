@@ -211,7 +211,7 @@ export default function DashboardPage() {
 
   const handleAddWidget = (widgetDef) => {
     const id = `w${Date.now()}`
-    const szMap = { 'chart-main': [4, 3], 'chart': [8, 4], 'gauge-set': [5, 4], 'status-panel': [5, 4] }
+    const szMap = { 'chart-main': [4, 3], 'computed': [4, 3], 'chart': [8, 4], 'gauge-set': [5, 4], 'status-panel': [5, 4] }
     const [baseW, h] = szMap[widgetDef.type] ?? [5, 5]
     setLayouts(prev => {
       const next = {}
@@ -287,6 +287,8 @@ export default function DashboardPage() {
       if (w.type === 'chart') {
         w.overlayIds?.forEach(id => ids.add(id))
       }
+      // computed 위젯의 kpiId2
+      if (w.type === 'computed' && w.kpiId2) ids.add(w.kpiId2)
     })
     return [...ids].map(id => allCandidates.find(c => c.id === id) ?? { id })
   }, [widgets, candidateMap, allCandidates])
@@ -403,6 +405,11 @@ export default function DashboardPage() {
                 id={i}
                 config={widgets[i]}
                 kpiSlot={kpiSlotMap[widgets[i]?.kpiId] ?? null}
+                kpiSlot2={
+                  widgets[i]?.type === 'computed' && widgets[i]?.kpiId2
+                    ? (kpiSlotMap[widgets[i].kpiId2] ?? secondarySlotMap[widgets[i].kpiId2] ?? null)
+                    : null
+                }
                 editMode={editMode}
                 onRemove={() => setPendingRemoveId(i)}
                 gridSize={sizeMap[i]}

@@ -86,6 +86,13 @@ function SparklineSVG({ data }) {
   )
 }
 
+// 0°=북 기준 시계방향 8방위 변환
+const COMPASS8 = ['북', '북동', '동', '남동', '남', '남서', '서', '북서']
+function toCompass8(deg) {
+  if (deg === null || deg === undefined) return '--'
+  return COMPASS8[Math.round(((deg % 360) + 360) % 360 / 45) % 8]
+}
+
 // ─── ChartMainWidget ─────────────────────────────────────────────────────────
 function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
   const value  = kpiSlot?.value ?? null
@@ -97,6 +104,11 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
   const isError   = ERROR_STATUSES.has(status)
   const isCrit    = status === 'STALE_CRIT'
   const isWarn    = status === 'STALE_WARN'
+
+  // 8방위 표시 여부
+  const isCompass   = candidate?.displayType === 'compass8'
+  const displayVal  = isCompass ? toCompass8(value) : fmt(value)
+  const displayUnit = isCompass ? '' : unit
 
   const subRows = candidate?.subRows ?? []
 
@@ -173,9 +185,16 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
       <div className="cm-value-area">
         <div className="cm-primary-row">
           <span className="cm-signal" style={{ background: signalColor }} />
-          <span className="cm-value" style={{ color: valueColor }}>{fmt(value)}</span>
-          <span className="cm-unit">{unit}</span>
+          <span className="cm-value" style={{ color: valueColor }}>{displayVal}</span>
+          <span className="cm-unit">{displayUnit}</span>
         </div>
+        {/* 나침반 모드: 방위각 도수 보조 표시 */}
+        {isCompass && value !== null && !isCompact && (
+          <div className="cm-secondary-row">
+            <span className="cm-sec-label">방위각</span>
+            <span className="cm-sec-val">{fmt(value)}°</span>
+          </div>
+        )}
 
         {row1?.showDelta && delta !== null && (
           <div className={`cm-delta cm-delta--${trend}`}>
@@ -221,6 +240,73 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
           </div>
         )
       })()}
+    </div>
+  )
+}
+
+// ─── ComputedWidget ──────────────────────────────────────────────────────────
+function ComputedWidget({ config, kpiSlot, kpiSlot2, gridSize }) {
+  const val1   = kpiSlot?.value  ?? null
+  const val2   = kpiSlot2?.value ?? null
+  const unit   = config.unit ?? '°C'
+
+  const computed = (val1 !== null && val2 !== null)
+    ? +(val1 - val2).toFixed(1) : null
+
+  const status1   = kpiSlot?.dataStatus  ?? 'LOADING'
+  const status2   = kpiSlot2?.dataStatus ?? 'LOADING'
+  const isLoading = status1 === 'LOADING' || status2 === 'LOADING'
+  const isError   = (ERROR_STATUSES.has(status1) && status1 !== 'LOADING') ||
+                    (ERROR_STATUSES.has(status2) && status2 !== 'LOADING')
+  const isCompact = gridSize && (gridSize.w < 3 || gridSize.h < 2)
+
+  // 차이 스파크라인 — 두 배열 원소별 뺄셈
+  const data1 = kpiSlot?.data  ?? []
+  const data2 = kpiSlot2?.data ?? []
+  const sparkData = data1.length >= 2 && data2.length >= 2
+    ? data1.map((v, i) => +(v - (data2[i] ?? val2 ?? 0)).toFixed(1))
+    : []
+
+  if (isLoading) {
+    return (
+      <div className="chart-main">
+        <div className="cm-value-area"><div className="cm-shimmer cm-shimmer--val" /></div>
+        {!isCompact && <div className="cm-spark-area"><div className="cm-shimmer cm-shimmer--spark" /></div>}
+      </div>
+    )
+  }
+
+  if (isError || computed === null) {
+    return (
+      <div className="chart-main">
+        <div className="cm-value-area">
+          <div className="cm-primary-row">
+            <span className="cm-value" style={{ color: 'var(--text-muted)' }}>--</span>
+            <span className="cm-unit">{unit}</span>
+          </div>
+          <div className="cm-stale-msg">연결 재시도 중...</div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={`chart-main${isCompact ? ' chart-main--compact' : ''}`}>
+      <div className="cm-value-area">
+        <div className="cm-primary-row">
+          <span className="cm-value">{fmt(computed)}</span>
+          <span className="cm-unit">{unit}</span>
+        </div>
+        <div className="cm-secondary-row">
+          <span className="cm-sec-label">난방설정 / 외부온도</span>
+          <span className="cm-sec-val">{fmt(val1)} / {fmt(val2)} {unit}</span>
+        </div>
+      </div>
+      {!isCompact && sparkData.length >= 2 && (
+        <div className="cm-spark-area">
+          <SparklineSVG data={sparkData} />
+        </div>
+      )}
     </div>
   )
 }
@@ -578,7 +664,7 @@ function SizeBadge({ w, h }) {
 
 // ─── Widget (root) ───────────────────────────────────────────────────────────
 export default function Widget({
-  id, config, kpiSlot, editMode, onRemove,
+  id, config, kpiSlot, kpiSlot2, editMode, onRemove,
   gridSize, candidate, extraSlots, onTitleChange, defaultTitle,
   actuatorSlots, allAvailableIds, allCandidates, onConfigChange,
 }) {
@@ -683,6 +769,14 @@ export default function Widget({
             allCandidates={allCandidates}
             allAvailableIds={allAvailableIds}
             onConfigChange={onConfigChange}
+          />
+        )}
+        {config.type === 'computed' && (
+          <ComputedWidget
+            config={config}
+            kpiSlot={kpiSlot}
+            kpiSlot2={kpiSlot2}
+            gridSize={gridSize}
           />
         )}
         {config.type === 'gauge-set' && (
