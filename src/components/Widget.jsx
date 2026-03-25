@@ -93,6 +93,88 @@ function toCompass8(deg) {
   return COMPASS8[Math.round(((deg % 360) + 360) % 360 / 45) % 8]
 }
 
+// ─── CompassDial ─────────────────────────────────────────────────────────────
+function CompassDial({ deg }) {
+  const S = 120, cx = 60, cy = 60, r = 50
+  const validDeg = (deg !== null && deg !== undefined && !isNaN(deg))
+  const rotation = validDeg ? ((deg % 360) + 360) % 360 : 0
+
+  // 8방향 눈금 + 4방위 레이블
+  const DIRS = ['북','','동','','남','','서','']
+  const ticks = Array.from({ length: 8 }, (_, i) => {
+    const rad = (i * 45 - 90) * Math.PI / 180
+    const isMajor = i % 2 === 0
+    const inner   = isMajor ? r * 0.82 : r * 0.90
+    return {
+      x1: cx + r      * Math.cos(rad),
+      y1: cy + r      * Math.sin(rad),
+      x2: cx + inner  * Math.cos(rad),
+      y2: cy + inner  * Math.sin(rad),
+      lx: cx + r * 0.64 * Math.cos(rad),
+      ly: cy + r * 0.64 * Math.sin(rad),
+      label: DIRS[i],
+      isMajor,
+    }
+  })
+
+  return (
+    <svg viewBox={`0 0 ${S} ${S}`} className="cm-compass-svg">
+      {/* 외곽 링 */}
+      <circle cx={cx} cy={cy} r={r}
+        fill="none" stroke="var(--border)" strokeWidth="1.5" />
+      {/* 내부 희미한 링 */}
+      <circle cx={cx} cy={cy} r={r * 0.55}
+        fill="none" stroke="var(--border)" strokeWidth="0.8" strokeDasharray="3 3" />
+
+      {/* 눈금 + 방위 레이블 */}
+      {ticks.map((t, i) => (
+        <g key={i}>
+          <line x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+            stroke="var(--text-secondary)"
+            strokeWidth={t.isMajor ? 1.8 : 1}
+            opacity={t.isMajor ? 0.8 : 0.45}
+          />
+          {t.label && (
+            <text x={t.lx} y={t.ly}
+              textAnchor="middle" dominantBaseline="central"
+              fontSize="10" fontWeight="600"
+              fill={t.label === '북' ? 'var(--accent)' : 'var(--text-secondary)'}
+            >
+              {t.label}
+            </text>
+          )}
+        </g>
+      ))}
+
+      {/* 바람 방향 화살표 (deg 방향에서 불어오는 방향으로 회전) */}
+      <g transform={`rotate(${rotation}, ${cx}, ${cy})`} opacity={validDeg ? 1 : 0.25}>
+        {/* 앞쪽 침 (accent 색) */}
+        <polygon
+          points={`${cx},${cy - r * 0.75} ${cx - 5},${cy + 4} ${cx},${cy - 4} ${cx + 5},${cy + 4}`}
+          fill="var(--accent)"
+        />
+        {/* 뒤쪽 침 (muted 색) */}
+        <polygon
+          points={`${cx},${cy + r * 0.52} ${cx - 4},${cy - 2} ${cx},${cy + 4} ${cx + 4},${cy - 2}`}
+          fill="var(--text-muted)"
+        />
+      </g>
+      {/* 중심 도트 */}
+      <circle cx={cx} cy={cy} r="4" fill="var(--surface-2)" stroke="var(--text-secondary)" strokeWidth="1.5" />
+
+      {/* 하단 도수 표시 */}
+      {validDeg && (
+        <text x={cx} y={S - 6}
+          textAnchor="middle" fontSize="9"
+          fill="var(--text-muted)"
+        >
+          {Math.round(rotation)}°
+        </text>
+      )}
+    </svg>
+  )
+}
+
 // ─── ChartMainWidget ─────────────────────────────────────────────────────────
 function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
   const value  = kpiSlot?.value ?? null
@@ -221,8 +303,15 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
         )}
       </div>
 
-      {/* 스파크라인 영역 — 하단 */}
-      {!hideSpark && data.length >= 2 && (() => {
+      {/* 나침반 모드: 다이얼 표시 */}
+      {isCompass && !hideSpark && (
+        <div className="cm-compass-area">
+          <CompassDial deg={value} />
+        </div>
+      )}
+
+      {/* 스파크라인 영역 — 하단 (나침반 모드 제외) */}
+      {!isCompass && !hideSpark && data.length >= 2 && (() => {
         const dMax = Math.max(...data)
         const dMin = Math.min(...data)
         const hasRange = dMax !== dMin
