@@ -20,7 +20,7 @@ import { useKpiPolling, clearZoneCache } from '../hooks/useKpiPolling'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import { GAUGE_SET_GROUPS, STATUS_PANEL_GROUPS } from '../constants/actuatorCandidates'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
-import GridLayout from 'react-grid-layout/legacy'
+import { Responsive as ResponsiveGridLayout } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
 import Widget from '../components/Widget'
@@ -28,35 +28,69 @@ import WidgetPicker from '../components/WidgetPicker'
 import TopBanner from '../components/TopBanner/TopBanner'
 import './DashboardPage.css'
 
-const COLS    = 20
-const ROW_H   = 80
-const MARGIN  = [12, 12]
-const PAD     = [16, 16]
+// 반응형 브레이크포인트 & 컬럼 수
+const BREAKPOINTS     = { xl: 1600, lg: 1200, md: 900, sm: 600, xs: 0 }
+const RESPONSIVE_COLS = { xl: 20,   lg: 16,   md: 10,  sm: 6,  xs: 4 }
+const ROW_H  = 80
+const MARGIN = [12, 12]
+const PAD    = [16, 16]
 
 // ─── localStorage 키 — App.jsx(초기화)에서도 동일 키를 사용한다 ───────
-export const STORAGE_KEY_LAYOUT  = 'dashboard:layout'
+export const STORAGE_KEY_LAYOUTS = 'dashboard:layouts'
+export const STORAGE_KEY_LAYOUT  = 'dashboard:layout'   // legacy (마이그레이션용)
 export const STORAGE_KEY_WIDGETS = 'dashboard:widgets'
-
-function loadFromStorage(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
 
 function saveToStorage(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)) } catch { /* quota 초과 등 무시 */ }
 }
 
-const DEFAULT_LAYOUT = [
+// 기본 xl(20컬럼) 레이아웃에서 각 브레이크포인트 레이아웃 자동 생성
+function makeLayouts(base) {
+  const xl = base
+  const lg = base.map(l => ({
+    ...l,
+    x: Math.round(l.x * 16 / 20),
+    w: Math.max(2, Math.round(l.w * 16 / 20)),
+  }))
+  const md = base.map((l, i) => ({
+    ...l, x: (i % 2) * 5, y: Math.floor(i / 2) * l.h, w: 5,
+  }))
+  const sm = base.map((l, i) => ({
+    ...l, x: (i % 2) * 3, y: Math.floor(i / 2) * l.h, w: 3,
+  }))
+  const xs = base.map((l, i) => ({
+    ...l, x: 0, y: i * l.h, w: 4,
+  }))
+  return { xl, lg, md, sm, xs }
+}
+
+const DEFAULT_LAYOUT_BASE = [
   { i: 'w1', x: 0,  y: 0, w: 4, h: 3, minW: 2, minH: 2 },
   { i: 'w2', x: 4,  y: 0, w: 4, h: 3, minW: 2, minH: 2 },
   { i: 'w3', x: 8,  y: 0, w: 4, h: 3, minW: 2, minH: 2 },
   { i: 'w4', x: 12, y: 0, w: 4, h: 3, minW: 2, minH: 2 },
   { i: 'w5', x: 16, y: 0, w: 4, h: 3, minW: 2, minH: 2 },
 ]
+const DEFAULT_LAYOUTS = makeLayouts(DEFAULT_LAYOUT_BASE)
+
+function loadLayouts() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_LAYOUTS)
+    if (raw) return JSON.parse(raw)
+    // 레거시 단일 레이아웃 → 반응형 마이그레이션
+    const legacy = localStorage.getItem(STORAGE_KEY_LAYOUT)
+    if (legacy) return makeLayouts(JSON.parse(legacy))
+  } catch { /* ignore */ }
+  return DEFAULT_LAYOUTS
+}
+
+// 현재 컨테이너 폭에 맞는 컬럼 수 반환
+function getCurrentCols(width) {
+  for (const bp of ['xl', 'lg', 'md', 'sm']) {
+    if (width >= BREAKPOINTS[bp]) return RESPONSIVE_COLS[bp]
+  }
+  return RESPONSIVE_COLS.xs
+}
 
 const DEFAULT_WIDGETS = {
   w1: { type: 'chart-main', title: '내부 온도', kpiId: 'xintemp1'  },
@@ -68,13 +102,14 @@ const DEFAULT_WIDGETS = {
 
 // B: 그리드 오버레이 — 컬럼·행 가이드선
 function GridOverlay({ containerWidth }) {
+  const cols    = getCurrentCols(containerWidth)
   const innerW  = containerWidth - PAD[0] * 2
-  const cellW   = (innerW - MARGIN[0] * (COLS - 1)) / COLS
+  const cellW   = (innerW - MARGIN[0] * (cols - 1)) / cols
   const stepX   = cellW + MARGIN[0]
   const stepY   = ROW_H + MARGIN[1]
   const rowCount = 12
 
-  const vLines = Array.from({ length: COLS + 1 }, (_, i) => {
+  const vLines = Array.from({ length: cols + 1 }, (_, i) => {
     const x = PAD[0] + i * stepX
     return <line key={`v${i}`} x1={x} y1="0" x2={x} y2="100%" />
   })
@@ -100,7 +135,7 @@ function GridOverlay({ containerWidth }) {
         {hLines}
       </svg>
       {/* 컬럼 번호 */}
-      {Array.from({ length: COLS }, (_, i) => (
+      {Array.from({ length: cols }, (_, i) => (
         <span
           key={i}
           className="grid-overlay__col-num"
@@ -118,8 +153,14 @@ export default function DashboardPage() {
   const isAdmin = true
 
   // lazy initializer — 마운트 시 localStorage에서 불러오고, 없으면 기본값 사용
-  const [layout, setLayout]   = useState(() => loadFromStorage(STORAGE_KEY_LAYOUT,  DEFAULT_LAYOUT))
-  const [widgets, setWidgets] = useState(() => loadFromStorage(STORAGE_KEY_WIDGETS, DEFAULT_WIDGETS))
+  const [layouts, setLayouts]           = useState(loadLayouts)
+  const [currentLayout, setCurrentLayout] = useState(() => loadLayouts().xl ?? DEFAULT_LAYOUTS.xl)
+  const [widgets, setWidgets]           = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_WIDGETS)
+      return raw ? JSON.parse(raw) : DEFAULT_WIDGETS
+    } catch { return DEFAULT_WIDGETS }
+  })
   const [editMode, setEditMode]       = useState(false)
   const [pickerOpen, setPickerOpen]   = useState(false)
   const [pendingRemoveId, setPendingRemoveId] = useState(null)
@@ -129,7 +170,7 @@ export default function DashboardPage() {
   const [refreshing,   setRefreshing]  = useState(false)
   const refreshTimer = useRef(null)
   const [containerWidth, setContainerWidth] = useState(
-    window.innerWidth - 200
+    () => Math.max(320, window.innerWidth - (window.innerWidth < 768 ? 0 : 220))
   )
 
   // 사이드바 토글 대응 — ResizeObserver로 실시간 감지
@@ -141,7 +182,10 @@ export default function DashboardPage() {
     ro.observe(node)
   }, [])
 
-  const handleLayoutChange = (newLayout) => setLayout(newLayout)
+  const handleLayoutChange = (cur, all) => {
+    setCurrentLayout(cur)
+    setLayouts(all)
+  }
 
   const handleRefresh = () => {
     clearZoneCache()
@@ -152,17 +196,33 @@ export default function DashboardPage() {
   }
 
   const handleRemoveWidgetConfirm = () => {
-    setLayout(prev => prev.filter(l => l.i !== pendingRemoveId))
-    setWidgets(prev => { const n = { ...prev }; delete n[pendingRemoveId]; return n })
+    const id = pendingRemoveId
+    setLayouts(prev => {
+      const next = {}
+      for (const bp of Object.keys(prev)) {
+        next[bp] = prev[bp].filter(l => l.i !== id)
+      }
+      return next
+    })
+    setCurrentLayout(prev => prev.filter(l => l.i !== id))
+    setWidgets(prev => { const n = { ...prev }; delete n[id]; return n })
     setPendingRemoveId(null)
   }
 
   const handleAddWidget = (widgetDef) => {
-    const id   = `w${Date.now()}`
-    const maxY = layout.reduce((m, l) => Math.max(m, l.y + l.h), 0)
-    const sizeMap = { 'chart-main': [4, 3], 'chart': [8, 4], 'gauge-set': [5, 4], 'status-panel': [5, 4] }
-    const [w, h] = sizeMap[widgetDef.type] ?? [5, 5]
-    setLayout(prev => [...prev, { i: id, x: 0, y: maxY, w, h, minW: 2, minH: 2 }])
+    const id = `w${Date.now()}`
+    const szMap = { 'chart-main': [4, 3], 'chart': [8, 4], 'gauge-set': [5, 4], 'status-panel': [5, 4] }
+    const [baseW, h] = szMap[widgetDef.type] ?? [5, 5]
+    setLayouts(prev => {
+      const next = {}
+      for (const bp of Object.keys(RESPONSIVE_COLS)) {
+        const bpLayout = prev[bp] ?? []
+        const maxY = bpLayout.reduce((m, l) => Math.max(m, l.y + l.h), 0)
+        const w = Math.min(baseW, RESPONSIVE_COLS[bp])
+        next[bp] = [...bpLayout, { i: id, x: 0, y: maxY, w, h, minW: 2, minH: 2 }]
+      }
+      return next
+    })
     setWidgets(prev => ({ ...prev, [id]: widgetDef }))
     setPickerOpen(false)
   }
@@ -257,7 +317,7 @@ export default function DashboardPage() {
   const actuatorSlotMap  = Object.fromEntries(actuatorKpiSlots.map(s => [s.id, s]))
 
   // C: 위젯별 현재 grid 크기 맵
-  const sizeMap = Object.fromEntries(layout.map(l => [l.i, { w: l.w, h: l.h }]))
+  const sizeMap = Object.fromEntries(currentLayout.map(l => [l.i, { w: l.w, h: l.h }]))
 
   return (
     <div className="dashboard" ref={containerRef}>
@@ -288,7 +348,7 @@ export default function DashboardPage() {
                 className={`toolbar-btn ${editMode ? 'toolbar-btn--active' : ''}`}
                 onClick={() => {
                   if (editMode) {
-                    saveToStorage(STORAGE_KEY_LAYOUT,  layout)
+                    saveToStorage(STORAGE_KEY_LAYOUTS, layouts)
                     saveToStorage(STORAGE_KEY_WIDGETS, widgets)
                   }
                   setEditMode(v => !v)
@@ -321,9 +381,10 @@ export default function DashboardPage() {
         {/* B: 편집모드 그리드 오버레이 */}
         {editMode && <GridOverlay containerWidth={containerWidth} />}
 
-        <GridLayout
-          layout={layout}
-          cols={COLS}
+        <ResponsiveGridLayout
+          layouts={layouts}
+          breakpoints={BREAKPOINTS}
+          cols={RESPONSIVE_COLS}
           rowHeight={ROW_H}
           width={containerWidth}
           isDraggable={editMode}
@@ -332,12 +393,11 @@ export default function DashboardPage() {
           margin={MARGIN}
           containerPadding={PAD}
           draggableHandle=".widget__drag-handle"
-          // A: 핸들 6방향
           resizeHandles={['se', 'sw', 'ne', 'nw', 's', 'e']}
           onResizeStart={() => setIsResizing(true)}
           onResizeStop={() => setIsResizing(false)}
         >
-          {layout.map(({ i }) => (
+          {Object.keys(widgets).map(i => (
             <div key={i}>
               <Widget
                 id={i}
@@ -358,7 +418,7 @@ export default function DashboardPage() {
               />
             </div>
           ))}
-        </GridLayout>
+        </ResponsiveGridLayout>
       </div>
 
       {pickerOpen && (

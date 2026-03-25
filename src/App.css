@@ -11,3 +11,14 @@
   min-width: 0;
   overflow: hidden;
 }
+
+/* 모바일: 사이드바 숨김, 헤더 항상 표시 */
+@media (max-width: 767px) {
+  .sidebar {
+    display: none;
+  }
+  .header--hidden {
+    height: var(--header-h) !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+}

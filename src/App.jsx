@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { CapabilitiesProvider } from './contexts/CapabilitiesContext'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DashboardPage from './pages/DashboardPage'
-import { STORAGE_KEY_LAYOUT, STORAGE_KEY_WIDGETS } from './pages/DashboardPage'
+import { STORAGE_KEY_LAYOUTS, STORAGE_KEY_LAYOUT, STORAGE_KEY_WIDGETS } from './pages/DashboardPage'
 import GrowthDataInputPage from './pages/GrowthDataInputPage'
 import FarmSettingsPage from './pages/FarmSettingsPage'
 import './App.css'
@@ -11,12 +11,20 @@ import './App.css'
 export default function App() {
   // 초기 화면 = 'dashboard' (로그인 랜딩 정책 고정)
   const [activePage,        setActivePage]        = useState('dashboard')
-  const [sidebarCollapsed,  setSidebarCollapsed]  = useState(false)
+  const [sidebarCollapsed,  setSidebarCollapsed]  = useState(() => window.innerWidth < 1200)
+
+  // 화면 크기에 따라 사이드바 자동 축소
+  useEffect(() => {
+    const handleResize = () => setSidebarCollapsed(window.innerWidth < 1200)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // 대시보드 초기화: localStorage 제거 후 key 증가로 DashboardPage 강제 리마운트
   const [dashboardResetKey, setDashboardResetKey] = useState(0)
 
   const handleResetDashboard = () => {
+    localStorage.removeItem(STORAGE_KEY_LAYOUTS)
     localStorage.removeItem(STORAGE_KEY_LAYOUT)
     localStorage.removeItem(STORAGE_KEY_WIDGETS)
     setDashboardResetKey(k => k + 1)
