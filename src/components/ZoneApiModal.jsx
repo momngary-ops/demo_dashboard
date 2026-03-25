@@ -76,11 +76,13 @@ export default function ZoneApiModal({ zone, onSave, onClose }) {
     // zone ID: 기존이면 유지, 신규면 타임스탬프 기반
     const zoneId = zone?.id ?? `Z-${Date.now()}`
 
+    // 제어기 + 양액기 필드 합집합
+    const ctrlF = testResult?.controller?.success ? (testResult.controller.fields ?? []) : []
+    const nutF  = testResult?.nutrient?.success   ? (testResult.nutrient.fields   ?? []) : []
+    const allF  = [...new Set([...ctrlF, ...nutF])]
+
     // 서버 zone_config.json에 저장
     try {
-      const ctrlF  = testResult?.controller?.success ? (testResult.controller.fields  ?? []) : []
-      const nutF   = testResult?.nutrient?.success   ? (testResult.nutrient.fields    ?? []) : []
-      const allF   = [...new Set([...ctrlF, ...nutF])]
       await fetch('/api/admin/zone', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -108,7 +110,7 @@ export default function ZoneApiModal({ zone, onSave, onClose }) {
         nutrientUrl:     nutrientUrl.trim(),
         status:          testResult?.controller?.success ? 'connected' : 'disconnected',
         lastConnected:   testResult?.controller?.success ? new Date().toISOString() : null,
-        availableFields: testResult?.controller?.fields ?? [],
+        availableFields: allF,
         errorMessage:    testResult?.controller?.success ? null : (testResult?.controller?.error ?? null),
       },
     }
