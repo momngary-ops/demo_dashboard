@@ -74,8 +74,8 @@ function SparklineSVG({ data, bandMin, bandMax }) {
     >
       <defs>
         <linearGradient id="spk-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="var(--accent)" stopOpacity="0.22" />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0"    />
+          <stop offset="0%"   stopColor="currentColor" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0"    />
         </linearGradient>
       </defs>
       {/* 범위 있을 때만 min/max 점선 기준선 */}
@@ -853,8 +853,11 @@ export default function Widget({
   if (!config) return null
 
   // 임계값 상태 → 배경 레벨
-  const statusLevel = kpiSlot?.dataStatus === 'STALE_CRIT' ? 'crit'
-    : kpiSlot?.dataStatus === 'STALE_WARN' ? 'warn'
+  const statusLevel = kpiSlot?.dataStatus === 'STALE_CRIT'  ? 'crit'
+    : kpiSlot?.dataStatus === 'STALE_WARN'                  ? 'warn'
+    : kpiSlot?.dataStatus === 'OUT_OF_RANGE'                ? 'oor'
+    : kpiSlot?.dataStatus === 'SENSOR_LOST'                 ? 'lost'
+    : kpiSlot?.dataStatus === 'SENSOR_FAULT'                ? 'crit'
     : null
 
   // 타이틀 인라인 편집
