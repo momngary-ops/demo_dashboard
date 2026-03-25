@@ -18,6 +18,8 @@ import asyncio
 import sqlite3
 import csv
 import io
+import time
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
@@ -34,9 +36,9 @@ except ImportError:
     raise
 
 try:
-    import requests as _requests
+    import httpx as _httpx
 except ImportError:
-    _requests = None
+    _httpx = None
 
 
 # ══════════════════════════════════════════════════════════
@@ -83,15 +85,51 @@ def _save_zone_config(config: dict):
     )
 
 
-def _fetch_real_url(url: str, timeout: int = 10):
-    if _requests is None:
-        return None, "requests 패키지가 설치되지 않았습니다."
+# ── 프록시 캐시 (URL → (data, err, fetched_at)) ────────────────────────────
+PROXY_CACHE_TTL = 15          # 초 — 동일 URL 15초 이내 재요청은 캐시 반환
+_proxy_cache: dict = {}
+
+# ── 인메모리 롤링 버퍼 (zone → 최근 30분, 1분 해상도) ─────────────────────
+BUFFER_MINUTES = 30
+_zone_buffer: dict[str, deque] = {}
+
+
+def _push_to_buffer(zone_id: str, raw_fields: dict):
+    """현재 시각 기준 zone 데이터를 버퍼에 추가."""
+    if zone_id not in _zone_buffer:
+        _zone_buffer[zone_id] = deque(maxlen=BUFFER_MINUTES)
+    entry = {
+        "ts": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "fields": {k.lower(): v for k, v in raw_fields.items()
+                   if v is not None and v != "" and not isinstance(v, dict)},
+    }
+    _zone_buffer[zone_id].append(entry)
+
+
+async def _fetch_url(url: str, timeout: int = 10, nocache: bool = False):
+    """비동기 HTTP GET + 프록시 캐시.
+    nocache=True 이면 캐시를 건너뛰고 항상 새 요청 (admin 테스트용).
+    """
+    if _httpx is None:
+        return None, "httpx 패키지가 설치되지 않았습니다. pip install httpx"
+
+    now = time.time()
+    if not nocache:
+        cached = _proxy_cache.get(url)
+        if cached and now - cached[2] < PROXY_CACHE_TTL:
+            return cached[0], cached[1]
+
     try:
-        resp = _requests.get(url, timeout=timeout, verify=False)
-        resp.raise_for_status()
-        return resp.json(), None
+        async with _httpx.AsyncClient(verify=False, timeout=timeout) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+            _proxy_cache[url] = (data, None, now)
+            return data, None
     except Exception as e:
-        return None, str(e)
+        err = str(e)
+        _proxy_cache[url] = (None, err, now)   # 오류도 캐시 (연속 실패 방지)
+        return None, err
 
 
 def _extract_fields(data: dict, skip: set) -> list:
@@ -499,8 +537,53 @@ def _save_alert(zone_id: str, field: str, value: float, range_min: float, range_
     print(f"[alert] {ts.isoformat()} zone={zone_id} field={field} val={value:.1f} range=[{range_min:.1f},{range_max:.1f}]")
 
 
+async def _check_zone_alert(zone_id: str, zone: dict, row: dict, cfg: dict, now: datetime):
+    """단일 구역 알림 체크 + 버퍼 push (asyncio.gather로 병렬 호출)."""
+    ctrl_url = zone.get("controllerUrl")
+    if not ctrl_url:
+        return
+    data, _ = await _fetch_url(ctrl_url)
+    if not data:
+        return
+    raw = _extract_raw(data)
+
+    # 버퍼에 현재값 추가 (스파크라인 즉시성 개선)
+    _push_to_buffer(zone_id, raw)
+
+    def _fval(key):
+        v = raw.get(key) or raw.get(key.lower())
+        try:
+            return float(v) if v not in (None, "") else None
+        except (ValueError, TypeError):
+            return None
+
+    co2_ref = row["co2"]
+    dev     = cfg["co2"].get("deviation_pct", 10) / 100
+    checks  = [
+        ("xintemp1", _fval("xintemp1"), row["temp_min"], row["temp_max"],        cfg["temp"]),
+        ("xinhum1",  _fval("xinhum1"),  row["hum_min"],  row["hum_max"],         cfg["humidity"]),
+        ("xco2",     _fval("xco2"),     co2_ref * (1 - dev), co2_ref * (1 + dev), cfg["co2"]),
+    ]
+    for field, val, lo, hi, acfg in checks:
+        if not acfg.get("enabled", True) or val is None:
+            continue
+        key   = f"{zone_id}:{field}"
+        out   = val < lo or val > hi
+        state = _alert_state.get(key, {"out_since": None, "alerted": False})
+        if out:
+            if state["out_since"] is None:
+                _alert_state[key] = {"out_since": now, "alerted": False}
+            elif not state["alerted"]:
+                elapsed_min = (now - state["out_since"]).total_seconds() / 60
+                if elapsed_min >= acfg.get("delay_min", 10):
+                    _save_alert(zone_id, field, val, lo, hi, now)
+                    _alert_state[key]["alerted"] = True
+        else:
+            _alert_state[key] = {"out_since": None, "alerted": False}
+
+
 async def _alert_check_loop():
-    """백그라운드: 1분마다 가이드라인 이탈 여부를 체크해 alerts 테이블에 기록."""
+    """백그라운드: 1분마다 가이드라인 이탈 여부를 체크 + 버퍼 갱신 (전 구역 병렬)."""
     while True:
         await asyncio.sleep(ALERT_INTERVAL_SEC)
         try:
@@ -512,50 +595,13 @@ async def _alert_check_loop():
             row   = next((r for r in rows if r["hour"] == hour), None)
             if row is None:
                 continue
-            cfg = gl["alert_config"]
-
+            cfg    = gl["alert_config"]
             config = _load_zone_config()
-            for zone_id, zone in config.get("zones", {}).items():
-                ctrl_url = zone.get("controllerUrl")
-                if not ctrl_url:
-                    continue
-                data, _ = _fetch_real_url(ctrl_url)
-                if not data:
-                    continue
-                raw = _extract_raw(data)
-
-                def _fval(key):
-                    v = raw.get(key) or raw.get(key.lower())
-                    try:
-                        return float(v) if v not in (None, "") else None
-                    except (ValueError, TypeError):
-                        return None
-
-                co2_ref = row["co2"]
-                dev     = cfg["co2"].get("deviation_pct", 10) / 100
-                checks = [
-                    ("xintemp1", _fval("xintemp1"), row["temp_min"], row["temp_max"],   cfg["temp"]),
-                    ("xinhum1",  _fval("xinhum1"),  row["hum_min"],  row["hum_max"],    cfg["humidity"]),
-                    ("xco2",     _fval("xco2"),      co2_ref * (1 - dev), co2_ref * (1 + dev), cfg["co2"]),
-                ]
-
-                for field, val, lo, hi, acfg in checks:
-                    if not acfg.get("enabled", True) or val is None:
-                        continue
-                    key = f"{zone_id}:{field}"
-                    out = val < lo or val > hi
-                    state = _alert_state.get(key, {"out_since": None, "alerted": False})
-
-                    if out:
-                        if state["out_since"] is None:
-                            _alert_state[key] = {"out_since": now, "alerted": False}
-                        elif not state["alerted"]:
-                            elapsed_min = (now - state["out_since"]).total_seconds() / 60
-                            if elapsed_min >= acfg.get("delay_min", 10):
-                                _save_alert(zone_id, field, val, lo, hi, now)
-                                _alert_state[key]["alerted"] = True
-                    else:
-                        _alert_state[key] = {"out_since": None, "alerted": False}
+            await asyncio.gather(
+                *[_check_zone_alert(zid, z, row, cfg, now)
+                  for zid, z in config.get("zones", {}).items()],
+                return_exceptions=True,
+            )
         except Exception as e:
             print(f"[alert_check] 오류: {e}")
 
@@ -605,34 +651,43 @@ def _extract_raw(data: dict) -> dict:
     return data
 
 
+async def _log_single_zone(zone_id: str, zone: dict, ts: str, skip: set) -> list:
+    """단일 구역 데이터를 비동기로 fetch해 (ts, zone_id, field, value) rows 반환."""
+    ctrl_url = zone.get("controllerUrl")
+    if not ctrl_url:
+        return []
+    data, _ = await _fetch_url(ctrl_url)
+    if data is None:
+        return []
+    raw  = _extract_raw(data)
+    rows = []
+    for k, v in raw.items():
+        k_lower = k.strip().lower()
+        if k_lower in skip:
+            continue
+        try:
+            val = float(v) if v not in (None, "") else None
+            if val is not None:
+                rows.append((ts, zone_id, k_lower, val))
+        except (ValueError, TypeError):
+            pass
+    return rows
+
+
 async def _log_zone_data_loop():
-    """백그라운드: 5분마다 등록된 구역 제어기 데이터를 SQLite에 저장."""
+    """백그라운드: 5분마다 등록된 구역 제어기 데이터를 SQLite에 저장 (전 구역 병렬)."""
     skip = {"xdatetime", "save_dt"}
     while True:
         try:
             config = _load_zone_config()
             zones  = config.get("zones", {})
             ts     = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-            rows   = []
 
-            for zone_id, zone in zones.items():
-                ctrl_url = zone.get("controllerUrl")
-                if not ctrl_url:
-                    continue
-                data, err = _fetch_real_url(ctrl_url)
-                if data is None:
-                    continue
-                raw = _extract_raw(data)
-                for k, v in raw.items():
-                    k_lower = k.strip().lower()
-                    if k_lower in skip:
-                        continue
-                    try:
-                        val = float(v) if v not in (None, "") else None
-                        if val is not None:
-                            rows.append((ts, zone_id, k_lower, val))
-                    except (ValueError, TypeError):
-                        pass
+            results = await asyncio.gather(
+                *[_log_single_zone(zid, z, ts, skip) for zid, z in zones.items()],
+                return_exceptions=True,
+            )
+            rows = [r for batch in results if isinstance(batch, list) for r in batch]
 
             if rows:
                 conn = sqlite3.connect(DB_PATH)
@@ -643,7 +698,6 @@ async def _log_zone_data_loop():
                 conn.commit()
                 conn.close()
                 print(f"[kpi_log] {ts} — {len(rows)}개 저장")
-
         except Exception as e:
             print(f"[kpi_log] 오류: {e}")
 
@@ -822,33 +876,45 @@ def get_alerts(
 # ══════════════════════════════════════════════════════════
 
 @app.get("/api/zone/{zone_id}/controller")
-def zone_controller(zone_id: str):
+async def zone_controller(zone_id: str):
     config   = _load_zone_config()
     zone     = config.get("zones", {}).get(zone_id, {})
     ctrl_url = zone.get("controllerUrl")
     if not ctrl_url:
         raise HTTPException(status_code=404, detail=f"구역 '{zone_id}'의 제어기 URL이 등록되지 않았습니다.")
-    data, err = _fetch_real_url(ctrl_url)
+    data, err = await _fetch_url(ctrl_url)
     if data is not None:
         return data
     return {"error": f"제어기 연결 실패: {err}", "zone_id": zone_id}
 
 
 @app.get("/api/zone/{zone_id}/nutrient")
-def zone_nutrient(zone_id: str):
+async def zone_nutrient(zone_id: str):
     config  = _load_zone_config()
     zone    = config.get("zones", {}).get(zone_id, {})
     nut_url = zone.get("nutrientUrl")
     if not nut_url:
         return {"fields": []}
-    data, err = _fetch_real_url(nut_url)
+    data, err = await _fetch_url(nut_url)
     if data is not None:
         if isinstance(data, dict) and "fields" in data:
             return data
-        skip = {"xdatetime", "save_dt"}
-        raw  = _extract_raw(data)
+        raw = _extract_raw(data)
         return {"fields": [raw] if raw else [{}]}
     return {"fields": [], "error": f"양액기 연결 실패: {err}", "zone_id": zone_id}
+
+
+@app.get("/api/zone/{zone_id}/recent")
+def zone_recent(zone_id: str, field: Optional[str] = None, limit: int = BUFFER_MINUTES):
+    """인메모리 버퍼에서 최근 N분 데이터 즉시 반환 (SQLite 조회 없음).
+    field 지정 시 해당 필드만 [{ts, value}] 형태로, 미지정 시 전체 반환.
+    """
+    buf = list(_zone_buffer.get(zone_id, deque()))[-limit:]
+    if field:
+        f = field.lower()
+        return [{"ts": d["ts"], "value": d["fields"].get(f)}
+                for d in buf if d["fields"].get(f) is not None]
+    return buf
 
 
 # ══════════════════════════════════════════════════════════
@@ -869,11 +935,12 @@ class ZoneConfigRequest(BaseModel):
 
 
 @app.post("/api/admin/zone/test")
-def admin_zone_test(req: ZoneTestRequest):
+async def admin_zone_test(req: ZoneTestRequest):
     result = {"controller": None, "nutrient": None}
     skip   = {"save_dt", "xdatetime"}
 
-    data, err = _fetch_real_url(req.controllerUrl)
+    # nocache=True: 테스트는 항상 신선한 데이터 확인
+    data, err = await _fetch_url(req.controllerUrl, nocache=True)
     if data is not None:
         available = _extract_fields(data, skip)
         result["controller"] = {"success": True, "fieldCount": len(available), "fields": available}
@@ -881,7 +948,7 @@ def admin_zone_test(req: ZoneTestRequest):
         result["controller"] = {"success": False, "error": err}
 
     if req.nutrientUrl:
-        data, err = _fetch_real_url(req.nutrientUrl)
+        data, err = await _fetch_url(req.nutrientUrl, nocache=True)
         if data is not None:
             available = _extract_fields(data, skip)
             result["nutrient"] = {"success": True, "fieldCount": len(available), "fields": available}

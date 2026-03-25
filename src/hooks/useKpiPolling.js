@@ -54,32 +54,50 @@ function _getSparkline(id) {
   )
 }
 
-/** SQLite 로그에서 과거 이력 로드 → _kpiHistory 선채우기 */
+/** _kpiHistory에 rows 병합 (중복 ts 제외, 오래된 항목 제거) */
+function _mergeHistory(fieldId, rows) {
+  if (!rows.length) return
+  if (!_kpiHistory[fieldId]) _kpiHistory[fieldId] = []
+  const existingTs = new Set(_kpiHistory[fieldId].map(p => p.ts))
+  for (const row of rows) {
+    const ts    = new Date(row.ts).getTime()
+    const value = row.value ?? row.fields?.[fieldId]
+    if (!existingTs.has(ts) && value !== null && value !== undefined) {
+      _kpiHistory[fieldId].push({ value: Number(value), ts })
+      existingTs.add(ts)
+    }
+  }
+  _kpiHistory[fieldId].sort((a, b) => a.ts - b.ts)
+  const cutoff = Date.now() - HISTORY_MS
+  _kpiHistory[fieldId] = _kpiHistory[fieldId].filter(p => p.ts >= cutoff)
+}
+
+/** 인메모리 버퍼(빠름) + SQLite 로그(느림) 병렬 로드 → _kpiHistory 선채우기 */
 async function _loadHistoryFromDB(slotConfigs, zoneId) {
   if (!zoneId) return
   const fields = slotConfigs.filter(c => c.id).map(c => c.id.toLowerCase())
   await Promise.allSettled(fields.map(async (fieldId) => {
     try {
+      // 1단계: 인메모리 버퍼 (즉시 응답 — 최근 30분 1분 해상도)
+      const bufRes = await fetch(
+        `/api/zone/${encodeURIComponent(zoneId)}/recent?field=${encodeURIComponent(fieldId)}`,
+        { signal: AbortSignal.timeout(2_000) }
+      )
+      if (bufRes.ok) {
+        const bufRows = await bufRes.json()
+        _mergeHistory(fieldId, bufRows)
+      }
+    } catch { /* 버퍼 실패는 비치명적 */ }
+
+    try {
+      // 2단계: SQLite 이력 (5분 간격, 최대 12시간) — 병렬로 실행
       const res = await fetch(
         `/api/logs?zone_id=${encodeURIComponent(zoneId)}&field=${encodeURIComponent(fieldId)}&limit=${SPARK_POINTS}`,
         { signal: AbortSignal.timeout(5_000) }
       )
       if (!res.ok) return
       const rows = await res.json()
-      if (!rows.length) return
-      // DESC → ASC 정렬 후 _kpiHistory에 병합 (중복 ts 제외)
-      const sorted = [...rows].reverse()
-      if (!_kpiHistory[fieldId]) _kpiHistory[fieldId] = []
-      const existingTs = new Set(_kpiHistory[fieldId].map(p => p.ts))
-      for (const row of sorted) {
-        const ts = new Date(row.ts).getTime()
-        if (!existingTs.has(ts) && row.value !== null) {
-          _kpiHistory[fieldId].push({ value: Number(row.value), ts })
-        }
-      }
-      _kpiHistory[fieldId].sort((a, b) => a.ts - b.ts)
-      const cutoff = Date.now() - HISTORY_MS
-      _kpiHistory[fieldId] = _kpiHistory[fieldId].filter(p => p.ts >= cutoff)
+      _mergeHistory(fieldId, [...rows].reverse())
     } catch {
       // 이력 로드 실패는 비치명적 — 실시간 폴링으로 대체
     }
