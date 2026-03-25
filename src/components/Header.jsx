@@ -1,6 +1,7 @@
 import { Bell, Mail, User } from 'lucide-react'
 import './Header.css'
 
+// TODO: auth context 연동 시 userName prop으로 실제 사용자명 주입
 export default function Header({ userName = '신연준 차장', collapsed = false }) {
   return (
     <header className={`header ${collapsed ? 'header--hidden' : ''}`}>
