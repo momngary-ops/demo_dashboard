@@ -804,6 +804,17 @@ def get_logs(
     return [{"ts": r[0], "zone_id": r[1], "field": r[2], "value": r[3]} for r in rows]
 
 
+_FIELD_KO = {
+    "xintemp1": "내부 온도",      "xinhum1": "내부 습도",      "xco2": "CO2 농도",
+    "xinsunvol": "내부 일사량",   "xinsunadd": "누적 일사량",  "xventtemp1": "환기 온도",
+    "xheattemp1": "난방 온도",    "xhumlack": "수분부족분",    "xabhum": "절대 습도",
+    "xdhum": "이슬점",            "xgndtemp": "지온",          "xwinddirec": "외부 풍향",
+    "xwindsp": "외부 풍속",       "xsunvol": "외부 일사량",    "xouttemp": "외부 온도",
+    "xsupplytemp1": "난방 공급온도", "xreturntemp1": "난방 회수온도", "xco2set": "CO2 설정값",
+    "now_ec": "급액 EC",          "now_ph": "급액 pH",         "water_con": "함수율",
+    "medium_ec": "배지 EC",       "medium_temp": "배지 온도",  "pi_ec": "배액 EC",
+}
+
 @app.get("/api/logs/download")
 def download_logs(
     zone_id:  Optional[str] = None,
@@ -824,13 +835,14 @@ def download_logs(
 
     buf = io.StringIO()
     w   = csv.writer(buf)
-    w.writerow(["ts", "zone_id", "field", "value"])
-    w.writerows(rows)
+    w.writerow(["시각", "구역", "항목", "값"])
+    for ts, zid, f, val in rows:
+        w.writerow([ts, zid, _FIELD_KO.get(f.lower(), f), val])
     buf.seek(0)
 
     return StreamingResponse(
         iter([buf.getvalue()]),
-        media_type="text/csv",
+        media_type="text/csv; charset=utf-8-sig",
         headers={"Content-Disposition": "attachment; filename=kpi_log.csv"},
     )
 
