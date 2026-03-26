@@ -48,6 +48,15 @@ export const WIDGET_GROUPS = [
     id:    'indoor-microclimate',
     title: '실내 미기상 및 생리 환경',
     items: [
+      {
+        id: 'avg_temp',
+        type: 'avg-temp',
+        title: '평균 온도',
+        kpiIds: ['xintemp1', 'xintemp2', 'xintemp3', 'xintemp4', 'xintemp5'],
+        unit: '°C',
+        requiredIds: ['xintemp1'],
+        description: '주간최고·일평균·야간최저 7일 그래프',
+      },
       { id: 'xintemp1',          type: 'chart-main', title: '내부 온도',      kpiId: 'xintemp1',      unit: '°C',         requiredIds: ['xintemp1'] },
       { id: 'xinhum1',           type: 'chart-main', title: '내부 습도',      kpiId: 'xinhum1',       unit: '%',          requiredIds: ['xinhum1'] },
       { id: 'xabhum',            type: 'chart-main', title: '절대 습도',      kpiId: 'xabhum',        unit: 'g/m³',       requiredIds: ['xabhum'] },

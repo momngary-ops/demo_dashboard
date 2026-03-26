@@ -238,7 +238,7 @@ export default function DashboardPage() {
 
   const handleAddWidget = (widgetDef) => {
     const id = `w${Date.now()}`
-    const szMap = { 'chart-main': [4, 3], 'computed': [4, 3], 'chart': [8, 4], 'gauge-set': [5, 4], 'status-panel': [5, 4] }
+    const szMap = { 'chart-main': [4, 3], 'computed': [4, 3], 'chart': [8, 4], 'gauge-set': [5, 4], 'status-panel': [5, 4], 'avg-temp': [5, 4] }
     const [baseW, h] = szMap[widgetDef.type] ?? [5, 5]
     setLayouts(prev => {
       const next = {}
@@ -313,6 +313,10 @@ export default function DashboardPage() {
       }
       // computed 위젯의 kpiId2
       if (w.type === 'computed' && w.kpiId2) ids.add(w.kpiId2)
+      // avg-temp 위젯의 kpiIds (xintemp1~5)
+      if (w.type === 'avg-temp' && w.kpiIds) {
+        w.kpiIds.forEach(id => ids.add(id))
+      }
     })
     return [...ids].map(id => allCandidates.find(c => c.id === id) ?? { id })
   }, [widgets, candidateMap, allCandidates])
@@ -473,6 +477,12 @@ export default function DashboardPage() {
                 allAvailableIds={allAvailableIds}
                 allCandidates={allCandidates}
                 onConfigChange={(partial) => handleConfigChange(i, partial)}
+                kpiSlots={
+                  widgets[i]?.type === 'avg-temp'
+                    ? (widgets[i].kpiIds ?? []).map(id => kpiSlotMap[id] ?? secondarySlotMap[id] ?? null)
+                    : undefined
+                }
+                zoneId={activeZoneId}
               />
             </div>
           ))}

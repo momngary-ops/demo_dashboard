@@ -1,0 +1,49 @@
+[33maa3ea9a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;33mtag: [m[1;33mv2.0[m[33m, [m[1;31morigin/main[m[33m)[m feat: Teams 알림 + 인앱 알림(토스트/벨 패널) 추가
+[33m4f3bd8a[m perf: API 응답 지연 최적화 — httpx 비동기, 프록시 캐시, 인메모리 버퍼, 병렬 루프
+[33m9488185[m fix: 위젯 가시성 개선 — 스파크라인 그라디언트 색 fix, 상태별 컬러 보더 + tint, 신호 dot 10px
+[33m25b7d8e[m chore: add /deploy slash command for server deployment
+[33m478df06[m style: 대동 브랜드 색상 정책 적용 — 스파크라인 가시성 개선
+[33m85dc5f0[m feat: 가이드라인 시스템 구축 (Phase 1-5)
+[33m8ea75ce[m feat: restore multi-line chart widget in WidgetPicker
+[33m141abd7[m feat: pre-populate sparkline history from SQLite on mount
+[33m06878d7[m fix: skip upper SENSOR_FAULT bound for unbounded KPIs (yMax: null)
+[33m5480549[m feat: add new widgets — indoor microclimate, heating energy, KPI picker
+[33m7100e4c[m fix: sync dashboard widget polling to active zone tab
+[33m9e6a1f3[m feat: replace wind direction sparkline with compass dial
+[33m912d709[m fix: prevent layout reflow on sidebar toggle
+[33m3e702f4[m feat: server-side settings persistence + KPI data logging
+[33mf218145[m feat: 신규 위젯 5종 및 WidgetPicker 카테고리 재구성
+[33mfcb8391[m merge: 대동 팔렛트 + 반응형 UI 개선 (work/v1.2)
+[33mc6dd801[m feat: 대동 브랜드 팔렛트 적용 및 반응형 UI 개선
+[33ma279147[m[33m ([m[1;33mtag: [m[1;33mv1.2[m[33m)[m deploy: 2026-03-25
+[33m0ad0e7f[m deploy: 2026-03-25
+[33m4b682cc[m deploy: 2026-03-25
+[33me6f78a4[m deploy: 2026-03-25
+[33mbd84723[m deploy: 2026-03-25
+[33m2a30af3[m deploy: 2026-03-25
+[33ma1b3c7a[m fix: 위젯 추가 모달 양액 데이터 미연결 버그 수정
+[33m5083aa0[m deploy: 2026-03-25
+[33m80b7110[m deploy: 2026-03-25
+[33m5e61dd5[m deploy: 2026-03-25
+[33ma41ae72[m deploy: 2026-03-25
+[33m964cb5a[m deploy: 2026-03-25
+[33m13b695f[m deploy: 2026-03-25
+[33m1d7ae94[m deploy: 2026-03-25
+[33m1ce6402[m deploy: 2026-03-25
+[33mb593b91[m remove mock data: weather/header
+[33mb416b46[m[33m ([m[1;33mtag: [m[1;33mv1.1[m[33m)[m feat: sparkline 3h history, remove kpiMockData, fix xinsunvol yMax
+[33m9dbf209[m fix: remove mock data, fix xinsunvol yMax
+[33m3b7806e[m fix: remove mock endpoint calls, real API only for CLIMATE fields
+[33m6a2942e[m[33m ([m[1;33mtag: [m[1;33mv1.0[m[33m)[m fix: adjust yMin for co2/water_con/medium_temp + zone-based real API polling
+[33mdf9dc27[m feat: zone-based real API polling with cache
+[33m3a30004[m feat: zone-level API registration with per-zone URL config
+[33m6dfb22f[m feat: 다중 센서 자동 탐색 - sensorFamilies 템플릿, dynamicCandidates 동적 생성
+[33md202ea1[m fix: kpiCandidates 필드명 불일치 수정 (harvest_grp, coloring_grp, projected_yield_ton)
+[33m035cb00[m feat: Farm Settings API 신규/재연결 섹션 - 연결 데이터 종류 표시
+[33md6ec6ae[m feat: CapabilitiesContext, SENSOR_LOST, Farm Settings 재탐색 버튼
+[33m24ef593[m feat: API fetch 활성화, capabilities 엔드포인트, 위젯 kpiId 기반 연동
+[33m3a44f46[m[33m ([m[1;31morigin/feature/data-input-integration[m[33m, [m[1;32mfeature/data-input-integration[m[33m)[m feat: 환경데이터 001~067 위젯 검토 및 대시보드 개선
+[33m9b0a109[m docs: 데이터 스키마 샘플, 이슈 스크린샷, 로고 에셋 추가
+[33mdcf072b[m feat: 사이드바 메뉴 개편 및 레이아웃 퍼시스턴스
+[33mad0e2ba[m[33m ([m[1;31morigin/dev[m[33m, [m[1;32mdev[m[33m)[m feat: 생육 대시보드 UI 및 작업문서 추가
+[33m955ade8[m feat: 스마트팜 관제 대시보드 초기 구현

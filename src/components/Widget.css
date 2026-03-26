@@ -168,6 +168,12 @@
   overflow: hidden;
 }
 
+/* 알림 상태 — 빨간 배경 강조 */
+.chart-main--alert {
+  background: rgba(220, 38, 38, 0.18) !important;
+  border-color: rgba(220, 38, 38, 0.5) !important;
+}
+
 /* 스파크라인 없는 compact 모드 — 값을 수직 중앙 정렬 */
 .chart-main--compact {
   justify-content: center;

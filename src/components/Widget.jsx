@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNotification } from '../contexts/NotificationContext'
 import { GripHorizontal, X, Pencil, Plus } from 'lucide-react'
 import {
   ResponsiveContainer, LineChart, Line,
@@ -835,6 +836,103 @@ function MultiLineChartWidget({ config, kpiSlot, extraSlots, candidate, allCandi
   )
 }
 
+// ─── AvgTempWidget ───────────────────────────────────────────────────────────
+function AvgTempWidget({ config, kpiSlots, zoneId, gridSize }) {
+  const { addNotification } = useNotification()
+  const [weekly, setWeekly] = useState(null)
+  const alertedRef = useRef({})
+
+  useEffect(() => {
+    if (!zoneId) return
+    const load = () =>
+      fetch(`/api/zone/${encodeURIComponent(zoneId)}/temp-weekly-avg`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => d && setWeekly(d))
+        .catch(() => {})
+    load()
+    const t = setInterval(load, 5 * 60_000)
+    return () => clearInterval(t)
+  }, [zoneId])
+
+  const validSlots = (kpiSlots ?? []).filter(s => s?.value != null)
+  const currentAvg = validSlots.length > 0
+    ? +(validSlots.reduce((s, sl) => s + sl.value, 0) / validSlots.length).toFixed(1)
+    : null
+
+  const dayAvg   = weekly?.week_day_avg   ?? null
+  const nightAvg = weekly?.week_night_avg ?? null
+  const dailyAvg = weekly?.week_daily_avg ?? null
+
+  const isDayAlert   = dayAvg   !== null && dayAvg   >= 33
+  const isNightAlert = nightAvg !== null && nightAvg <= 15
+  const isAlert = isDayAlert || isNightAlert
+
+  useEffect(() => {
+    const now = Date.now()
+    const COOLDOWN = 30 * 60_000
+    if (isDayAlert && (!alertedRef.current.day || now - alertedRef.current.day > COOLDOWN)) {
+      alertedRef.current.day = now
+      addNotification({ title: '고온 경고', message: `주간 평균 ${dayAvg}°C (기준 33°C 초과)`, kpiId: 'avg_temp', status: 'OUT_OF_RANGE' })
+    }
+    if (isNightAlert && (!alertedRef.current.night || now - alertedRef.current.night > COOLDOWN)) {
+      alertedRef.current.night = now
+      addNotification({ title: '저온 경고', message: `야간 평균 ${nightAvg}°C (기준 15°C 미만)`, kpiId: 'avg_temp', status: 'OUT_OF_RANGE' })
+    }
+  }, [isDayAlert, isNightAlert, dayAvg, nightAvg, addNotification])
+
+  const chartData = (weekly?.days ?? []).map(d => ({
+    date:      d.date?.slice(5),
+    day_high:  d.day_high,
+    daily_avg: d.daily_avg,
+    night_low: d.night_low,
+  }))
+
+  const isCompact = gridSize && (gridSize.w < 3 || gridSize.h < 2)
+
+  return (
+    <div className={`chart-main${isAlert ? ' chart-main--alert' : ''}`}>
+      <div className="cm-value-area" style={{ flexShrink: 0 }}>
+        <div className="cm-primary-row">
+          {currentAvg !== null
+            ? <><span className="cm-value">{currentAvg}</span><span className="cm-unit">°C</span></>
+            : <span className="cm-value" style={{ color: 'var(--text-muted)' }}>--</span>
+          }
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>
+            {validSlots.length}개 센서
+          </span>
+        </div>
+      </div>
+
+      {!isCompact && chartData.length >= 2 && (
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: -16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+              <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.4)' }}
+                     axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.4)' }}
+                     axisLine={false} tickLine={false} width={28} />
+              <Tooltip contentStyle={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11 }}
+                       formatter={(v, name) => [`${v}°C`, name]} />
+              <Line type="monotone" dataKey="day_high"  stroke="#f97316" strokeWidth={1.5} dot={false} name="주간최고" connectNulls />
+              <Line type="monotone" dataKey="daily_avg" stroke="#6ac8c7" strokeWidth={1.5} dot={false} name="일평균"   connectNulls />
+              <Line type="monotone" dataKey="night_low" stroke="#60a5fa" strokeWidth={1.5} dot={false} name="야간최저" connectNulls />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0, fontSize: 11, paddingTop: 4 }}>
+        <span style={{ color: '#f97316' }}>주간 {dayAvg ?? '--'}°C</span>
+        <span style={{ color: 'rgba(255,255,255,0.4)' }}>|</span>
+        <span style={{ color: '#6ac8c7' }}>일평균 {dailyAvg ?? '--'}°C</span>
+        <span style={{ color: 'rgba(255,255,255,0.4)' }}>|</span>
+        <span style={{ color: isNightAlert ? '#f87171' : '#60a5fa' }}>야간 {nightAvg ?? '--'}°C</span>
+      </div>
+    </div>
+  )
+}
+
 // ─── SizeBadge ───────────────────────────────────────────────────────────────
 function SizeBadge({ w, h }) {
   return (
@@ -849,6 +947,7 @@ export default function Widget({
   id, config, kpiSlot, kpiSlot2, editMode, onRemove,
   gridSize, candidate, extraSlots, onTitleChange, defaultTitle,
   actuatorSlots, allAvailableIds, allCandidates, onConfigChange,
+  kpiSlots = undefined, zoneId = null,
 }) {
   if (!config) return null
 
@@ -969,6 +1068,14 @@ export default function Widget({
             config={config}
             actuatorSlots={actuatorSlots}
             allAvailableIds={allAvailableIds}
+          />
+        )}
+        {config.type === 'avg-temp' && (
+          <AvgTempWidget
+            config={config}
+            kpiSlots={kpiSlots}
+            zoneId={zoneId}
+            gridSize={gridSize}
           />
         )}
         {config.type === 'status-panel' && (
