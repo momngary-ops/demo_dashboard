@@ -3,6 +3,8 @@ import { CROP_SCHEMA, DEFAULT_FARM_CONFIG, loadFarmConfig, saveFarmConfig } from
 import { useCapabilities } from '../contexts/CapabilitiesContext'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import { clearZoneCache } from '../hooks/useKpiPolling'
+import { loadAlertConfig, saveAlertConfig } from '../hooks/useAlertNotifier'
+import { sendTeamsAlert } from '../utils/teamsNotifier'
 import AdminPasswordModal from '../components/AdminPasswordModal'
 import ZoneApiModal from '../components/ZoneApiModal'
 import './FarmSettingsPage.css'
@@ -92,6 +94,37 @@ function ZoneRow({ zone, index, zoneCapState, onEdit, onDelete, onReconnect }) {
 export default function FarmSettingsPage() {
   const [config, setConfig] = useState(loadFarmConfig)
   const [saved,  setSaved]  = useState(false)
+
+  // ─── 알림 설정 state ─────────────────────────────────────────────────────
+  const [alertCfg,      setAlertCfg]      = useState(loadAlertConfig)
+  const [testStatus,    setTestStatus]    = useState(null)   // null | 'sending' | 'ok' | 'fail'
+  const [testMsg,       setTestMsg]       = useState('')
+
+  const updateAlert = (key, value) => {
+    setAlertCfg(prev => {
+      const next = { ...prev, [key]: value }
+      saveAlertConfig(next)
+      return next
+    })
+  }
+
+  const handleTestSend = async () => {
+    if (!alertCfg.webhookUrl) return
+    setTestStatus('sending')
+    setTestMsg('')
+    try {
+      await sendTeamsAlert(alertCfg.webhookUrl, {
+        id: 'test', title: '테스트 알림', icon: '🔔',
+        value: 42.3, unit: '°C', dataStatus: 'OUT_OF_RANGE',
+        yMin: 10, yMax: 40,
+      })
+      setTestStatus('ok')
+      setTestMsg('Teams 채널에 테스트 메시지가 전송되었습니다.')
+    } catch (e) {
+      setTestStatus('fail')
+      setTestMsg(e.message ?? '전송 실패')
+    }
+  }
   const [pendingDeleteId,  setPendingDeleteId]  = useState(null)
   const [zoneModalTarget,  setZoneModalTarget]  = useState(undefined) // undefined=닫힘, null=신규, zone=수정
   const { zoneCapabilities, refetchZone, updateZoneAvailable } = useCapabilities()
@@ -253,6 +286,68 @@ export default function FarmSettingsPage() {
           <button className="fsp-btn fsp-btn--add" onClick={() => setZoneModalTarget(null)}>
             + 구역 추가
           </button>
+        </section>
+
+        {/* 알림 설정 */}
+        <section className="fsp__section">
+          <h2 className="fsp__section-title">알림 설정 (Microsoft Teams)</h2>
+          <div className="fsp__fields">
+            <div className="fsp__field fsp__field--row">
+              <label className="fsp__label">알림 활성화</label>
+              <label className="fsp__toggle">
+                <input
+                  type="checkbox"
+                  checked={alertCfg.enabled}
+                  onChange={e => updateAlert('enabled', e.target.checked)}
+                />
+                <span className="fsp__toggle-track" />
+              </label>
+            </div>
+            <div className="fsp__field">
+              <label className="fsp__label">Teams Incoming Webhook URL</label>
+              <input
+                className="fsp__input fsp__input--wide"
+                type="url"
+                placeholder="https://xxxx.webhook.office.com/webhookb2/..."
+                value={alertCfg.webhookUrl}
+                onChange={e => updateAlert('webhookUrl', e.target.value)}
+              />
+              <span className="fsp__field-hint">
+                Teams 채널 → 커넥터 → Incoming Webhook에서 URL을 발급하세요.
+              </span>
+            </div>
+            <div className="fsp__field">
+              <label className="fsp__label">재알림 쿨다운 (분)</label>
+              <input
+                className="fsp__input fsp__input--short"
+                type="number"
+                min="5"
+                max="1440"
+                step="5"
+                value={alertCfg.cooldownMin}
+                onChange={e => updateAlert('cooldownMin', Math.max(5, parseInt(e.target.value) || 30))}
+              />
+              <span className="fsp__field-hint">
+                같은 항목에서 동일 이상이 반복될 때 최소 대기 시간 (기본 30분).
+              </span>
+            </div>
+            <div className="fsp__field fsp__field--row fsp__field--alert-desc">
+              <span className="fsp__field-hint">
+                알림 트리거 조건: <strong>임계치 이탈 (OUT_OF_RANGE)</strong> · <strong>데이터 수신 중단 10분 이상 (STALE_CRIT)</strong> · <strong>센서 오류 (SENSOR_FAULT)</strong> · <strong>센서 연결 끊김 (SENSOR_LOST)</strong>
+              </span>
+            </div>
+            <div className="fsp__field fsp__field--row">
+              <button
+                className="fsp-btn fsp-btn--primary"
+                onClick={handleTestSend}
+                disabled={!alertCfg.webhookUrl || testStatus === 'sending'}
+              >
+                {testStatus === 'sending' ? '전송 중...' : '테스트 전송'}
+              </button>
+              {testStatus === 'ok'   && <span className="fsp__alert-test fsp__alert-test--ok">✅ {testMsg}</span>}
+              {testStatus === 'fail' && <span className="fsp__alert-test fsp__alert-test--fail">❌ {testMsg}</span>}
+            </div>
+          </div>
         </section>
 
         {/* 보안 설정 */}

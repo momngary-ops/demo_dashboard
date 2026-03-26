@@ -74,3 +74,27 @@
   color: var(--text-primary);
   white-space: nowrap;
 }
+
+/* ── 벨 + 알림 패널 래퍼 ──────────────────────────────────────────────── */
+.header__bell-wrap {
+  position: relative;
+}
+
+.header__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  line-height: 1;
+}

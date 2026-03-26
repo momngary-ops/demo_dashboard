@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { CapabilitiesProvider } from './contexts/CapabilitiesContext'
 import { GuidelineProvider } from './contexts/GuidelineContext'
+import { NotificationProvider } from './contexts/NotificationContext'
+import { ToastContainer } from './components/NotificationToast'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DashboardPage from './pages/DashboardPage'
@@ -43,6 +45,7 @@ export default function App() {
   }
 
   return (
+    <NotificationProvider>
     <GuidelineProvider>
     <CapabilitiesProvider>
     <div className="layout">
@@ -67,7 +70,9 @@ export default function App() {
         </main>
       </div>
     </div>
+    <ToastContainer />
     </CapabilitiesProvider>
     </GuidelineProvider>
+    </NotificationProvider>
   )
 }

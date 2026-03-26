@@ -1,0 +1,110 @@
+/* ── 토스트 컨테이너 — 우하단 고정 ───────────────────────────────────────── */
+.n-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* ── 개별 토스트 ─────────────────────────────────────────────────────────── */
+.n-toast {
+  pointer-events: all;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 300px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  background: var(--surface);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  animation: toast-in 0.25s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.n-toast--warn {
+  border-left-color: #f97316;
+  background: color-mix(in srgb, var(--surface) 92%, #f97316 8%);
+}
+
+.n-toast--crit {
+  border-left-color: #ef4444;
+  background: color-mix(in srgb, var(--surface) 92%, #ef4444 8%);
+}
+
+.n-toast__emoji {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.n-toast__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.n-toast__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.n-toast__kpi {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.n-toast__value {
+  font-size: 13px;
+  color: #fca5a5;
+  font-weight: 500;
+}
+
+.n-toast__range {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.n-toast__zone {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.n-toast__close {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+  margin-top: -2px;
+}
+
+.n-toast__close:hover {
+  color: var(--text-primary);
+  background: var(--surface-2);
+}

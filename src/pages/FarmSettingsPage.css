@@ -386,6 +386,81 @@
   color: var(--text-secondary);
 }
 
+/* ─── 알림 설정 ───────────────────────────────────────────────────────────── */
+.fsp__field--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.fsp__field--alert-desc {
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.fsp__input--wide {
+  min-width: 420px;
+}
+
+/* 토글 스위치 */
+.fsp__toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fsp__toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.fsp__toggle-track {
+  display: block;
+  width: 36px;
+  height: 20px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.fsp__toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform var(--transition), background var(--transition);
+}
+
+.fsp__toggle input:checked + .fsp__toggle-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.fsp__toggle input:checked + .fsp__toggle-track::after {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+/* 테스트 전송 결과 */
+.fsp__alert-test {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.fsp__alert-test--ok   { color: #4caf82; }
+.fsp__alert-test--fail { color: var(--danger); }
+
 /* ─── 구역 삭제 모달 ──────────────────────────────────────────────────────── */
 .fsp-modal-backdrop {
   position: fixed;

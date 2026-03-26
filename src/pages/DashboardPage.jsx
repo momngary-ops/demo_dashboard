@@ -18,6 +18,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import AdminPasswordModal from '../components/AdminPasswordModal'
 import { loadFarmConfig } from '../constants/farmSchema'
 import { useKpiPolling, clearZoneCache } from '../hooks/useKpiPolling'
+import { useAlertNotifier } from '../hooks/useAlertNotifier'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import { GAUGE_SET_GROUPS, STATUS_PANEL_GROUPS } from '../constants/actuatorCandidates'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
@@ -338,6 +339,19 @@ export default function DashboardPage() {
 
   const actuatorKpiSlots = useKpiPolling(actuatorSlotConfigs, activeZoneId, refreshKey)
   const actuatorSlotMap  = Object.fromEntries(actuatorKpiSlots.map(s => [s.id, s]))
+
+  // 현재 구역 라벨 — 알림 메시지에 구역명 표시용
+  const zoneLabel = useMemo(() => {
+    if (!activeZoneId) return null
+    return farmConfig.zones.find(z => z.id === activeZoneId)?.label ?? null
+  }, [activeZoneId, farmConfig])
+
+  // 위젯 슬롯에 구역 라벨 주입 후 알림 감시
+  const alertSlots = useMemo(
+    () => zoneLabel ? widgetKpiSlots.map(s => ({ ...s, zoneLabel })) : widgetKpiSlots,
+    [widgetKpiSlots, zoneLabel]
+  )
+  useAlertNotifier(alertSlots)
 
   // C: 위젯별 현재 grid 크기 맵
   const sizeMap = Object.fromEntries(currentLayout.map(l => [l.i, { w: l.w, h: l.h }]))
