@@ -94,5 +94,17 @@ export const WIDGET_GROUPS = [
       },
     ],
   },
+  {
+    id:    'nutrient-irrigation',
+    title: '양액·관수',
+    items: [
+      { id: 'now_ec',      type: 'chart-main', title: '급액 EC',   kpiId: 'now_ec',      unit: 'dS/m', requiredIds: ['now_ec'] },
+      { id: 'now_ph',      type: 'chart-main', title: '급액 pH',   kpiId: 'now_ph',      unit: 'pH',   requiredIds: ['now_ph'] },
+      { id: 'water_con',   type: 'chart-main', title: '함수율',     kpiId: 'water_con',   unit: '%',    requiredIds: ['water_con'] },
+      { id: 'medium_ec',   type: 'chart-main', title: '배지 EC',   kpiId: 'medium_ec',   unit: 'dS/m', requiredIds: ['medium_ec'] },
+      { id: 'medium_temp', type: 'chart-main', title: '배지 온도', kpiId: 'medium_temp', unit: '°C',   requiredIds: ['medium_temp'] },
+      { id: 'pi_ec',       type: 'chart-main', title: '배액 EC',   kpiId: 'pi_ec',       unit: 'dS/m', requiredIds: ['pi_ec'] },
+    ],
+  },
   // 추가 그룹은 여기에 계속 등록
 ]

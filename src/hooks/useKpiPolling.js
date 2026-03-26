@@ -155,7 +155,7 @@ async function fetchZoneData(zoneId) {
   _zonePending[zoneId] = (async () => {
     try {
       const safeFetch = (url) =>
-        fetch(url, { signal: AbortSignal.timeout(10_000) })
+        fetch(url, { signal: AbortSignal.timeout(5_000) })
           .then(r => {
             if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`)
             return r.json()
@@ -268,8 +268,9 @@ export function useKpiPolling(slotConfigs, zoneId = null, refreshKey = 0) {
           )
         ))
 
-    // 과거 이력 선채우기 후 첫 폴링 → 스파크라인에 즉시 반영
-    _loadHistoryFromDB(slotConfigs, effectiveZoneId).finally(load)
+    // 이력 로드 + 현재값 조회 병렬 실행 → 첫 화면 대기시간 단축
+    _loadHistoryFromDB(slotConfigs, effectiveZoneId)
+    load()
     const timer = setInterval(load, POLLING.KPI_INTERVAL_MS)
     return () => clearInterval(timer)
   }, [configKey, effectiveZoneId, zoneAvailable]) // eslint-disable-line

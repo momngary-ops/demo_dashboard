@@ -42,7 +42,7 @@ function KpiItem({ c, avail, liveMap, onAdd }) {
   return (
     <button
       className={`picker__item ${!avail ? 'picker__item--noapi' : ''}`}
-      onClick={() => avail && onAdd({ type: 'stat', title: c.title, kpiId: c.id, unit: c.unit })}
+      onClick={() => avail && onAdd(c)}
       title={!avail ? '미연결' : c.title}
     >
       {c.icon} {c.title}

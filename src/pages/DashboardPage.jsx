@@ -16,6 +16,7 @@
  */
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import AdminPasswordModal from '../components/AdminPasswordModal'
+import ExportModal from '../components/ExportModal'
 import { loadFarmConfig } from '../constants/farmSchema'
 import { useKpiPolling, clearZoneCache } from '../hooks/useKpiPolling'
 import { useAlertNotifier } from '../hooks/useAlertNotifier'
@@ -166,6 +167,7 @@ export default function DashboardPage() {
   })
   const [editMode, setEditMode]       = useState(false)
   const [pickerOpen, setPickerOpen]   = useState(false)
+  const [exportOpen, setExportOpen]   = useState(false)
   const [pendingRemoveId, setPendingRemoveId] = useState(null)
   const [isResizing, setIsResizing]   = useState(false)
   const [farmConfig]   = useState(loadFarmConfig)
@@ -358,6 +360,7 @@ export default function DashboardPage() {
 
   return (
     <div className="dashboard" ref={containerRef}>
+      {exportOpen && <ExportModal onClose={() => setExportOpen(false)} />}
       {pendingRemoveId && (
         <AdminPasswordModal
           title="위젯 제거"
@@ -378,6 +381,13 @@ export default function DashboardPage() {
             title="데이터 새로고침"
           >
             {refreshing ? '🔄' : '↻'} 새로고침
+          </button>
+          <button
+            className="toolbar-btn"
+            onClick={() => setExportOpen(true)}
+            title="환경 데이터 CSV 다운로드"
+          >
+            ↓ CSV 내보내기
           </button>
           {isAdmin && (
             <>

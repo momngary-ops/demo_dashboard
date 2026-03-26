@@ -99,7 +99,7 @@ const ENV = [
   {
     id: 'xdhum',      title: '이슬점',       unit: '°C',
     icon: '💦', bgColor: 'rgba(99,102,241,0.45)',
-    yMin: -5,  yMax: 25,   category: '환경·제어',
+    yMin: null, yMax: null, category: '환경·제어',
     data_no: '017',
     cardType: 'chart-main',
     subRows: [

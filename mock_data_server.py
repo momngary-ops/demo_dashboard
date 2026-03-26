@@ -527,7 +527,7 @@ _alert_state: dict = {}  # { "zone_id:field": {"out_since": datetime|None, "aler
 
 
 def _save_alert(zone_id: str, field: str, value: float, range_min: float, range_max: float, ts: datetime):
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.execute(
         "INSERT INTO alerts (ts, zone_id, field, value, range_min, range_max) VALUES (?,?,?,?,?,?)",
         (ts.isoformat() + "Z", zone_id, field, value, range_min, range_max),
@@ -611,7 +611,9 @@ async def _alert_check_loop():
 # ══════════════════════════════════════════════════════════
 
 def _init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS kpi_log (
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -690,7 +692,7 @@ async def _log_zone_data_loop():
             rows = [r for batch in results if isinstance(batch, list) for r in batch]
 
             if rows:
-                conn = sqlite3.connect(DB_PATH)
+                conn = sqlite3.connect(DB_PATH, timeout=30)
                 conn.executemany(
                     "INSERT INTO kpi_log (ts, zone_id, field, value) VALUES (?,?,?,?)",
                     rows,
@@ -768,6 +770,19 @@ async def post_settings(request: Request):
 # KPI 로그 조회 / CSV 다운로드
 # ══════════════════════════════════════════════════════════
 
+@app.get("/api/logs/fields")
+def get_log_fields(zone_id: Optional[str] = None):
+    """kpi_log에 실제 저장된 field 목록 반환."""
+    conn = sqlite3.connect(DB_PATH, timeout=30)
+    q, params = "SELECT DISTINCT field FROM kpi_log WHERE 1=1", []
+    if zone_id:
+        q += " AND zone_id=?"; params.append(zone_id)
+    q += " ORDER BY field"
+    rows = conn.execute(q, params).fetchall()
+    conn.close()
+    return [r[0] for r in rows]
+
+
 @app.get("/api/logs")
 def get_logs(
     zone_id:  Optional[str] = None,
@@ -777,7 +792,7 @@ def get_logs(
     limit:    int = 1000,
 ):
     """KPI 로그 JSON 조회."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     q, params = "SELECT ts, zone_id, field, value FROM kpi_log WHERE 1=1", []
     if zone_id: q += " AND zone_id=?";  params.append(zone_id)
     if field:   q += " AND field=?";    params.append(field)
@@ -797,7 +812,7 @@ def download_logs(
     to_ts:    Optional[str] = None,
 ):
     """KPI 로그 CSV 다운로드."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     q, params = "SELECT ts, zone_id, field, value FROM kpi_log WHERE 1=1", []
     if zone_id: q += " AND zone_id=?";  params.append(zone_id)
     if field:   q += " AND field=?";    params.append(field)
@@ -858,7 +873,7 @@ def get_alerts(
     limit:   int = 50,
 ):
     """가이드라인 이탈 알림 이력 조회."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     q, params = "SELECT ts, zone_id, field, value, range_min, range_max FROM alerts WHERE 1=1", []
     if zone_id:
         q += " AND zone_id=?"; params.append(zone_id)
@@ -974,6 +989,32 @@ def admin_save_zone(zone: ZoneConfigRequest):
     }
     _save_zone_config(config)
     return {"success": True, "zoneId": zone.zoneId}
+
+
+@app.post("/api/admin/zone/{zone_id}/rediscover")
+async def admin_zone_rediscover(zone_id: str):
+    """구역의 제어기+양액기 API를 재호출해 availableFields를 갱신한다."""
+    config = _load_zone_config()
+    zone   = config.get("zones", {}).get(zone_id)
+    if not zone:
+        raise HTTPException(status_code=404, detail="zone not found")
+    ctrl_url = zone.get("controllerUrl")
+    nut_url  = zone.get("nutrientUrl")
+    if not ctrl_url:
+        raise HTTPException(status_code=400, detail="no controllerUrl configured")
+    skip = {"save_dt", "xdatetime"}
+    all_fields: list = []
+    data, _ = await _fetch_url(ctrl_url, nocache=True)
+    if data:
+        all_fields += _extract_fields(data, skip)
+    if nut_url:
+        data, _ = await _fetch_url(nut_url, nocache=True)
+        if data:
+            all_fields += _extract_fields(data, skip)
+    fields = list(dict.fromkeys(all_fields))   # 중복 제거, 순서 유지
+    config["zones"][zone_id]["availableFields"] = fields
+    _save_zone_config(config)
+    return {"success": True, "fields": fields}
 
 
 @app.delete("/api/admin/zone/{zone_id}")
