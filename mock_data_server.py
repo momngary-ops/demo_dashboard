@@ -805,14 +805,57 @@ def get_logs(
 
 
 _FIELD_KO = {
-    "xintemp1": "내부 온도",      "xinhum1": "내부 습도",      "xco2": "CO2 농도",
-    "xinsunvol": "내부 일사량",   "xinsunadd": "누적 일사량",  "xventtemp1": "환기 온도",
-    "xheattemp1": "난방 온도",    "xhumlack": "수분부족분",    "xabhum": "절대 습도",
-    "xdhum": "이슬점",            "xgndtemp": "지온",          "xwinddirec": "외부 풍향",
-    "xwindsp": "외부 풍속",       "xsunvol": "외부 일사량",    "xouttemp": "외부 온도",
-    "xsupplytemp1": "난방 공급온도", "xreturntemp1": "난방 회수온도", "xco2set": "CO2 설정값",
-    "now_ec": "급액 EC",          "now_ph": "급액 pH",         "water_con": "함수율",
-    "medium_ec": "배지 EC",       "medium_temp": "배지 온도",  "pi_ec": "배액 EC",
+    # 환경 센서
+    "xintemp1": "내부 온도",        "xinhum1": "내부 습도",        "xco2": "CO2 농도",
+    "xinsunvol": "내부 일사량",     "xinsunadd": "누적 일사량",    "xventtemp1": "환기 온도",
+    "xheattemp1": "난방 온도",      "xhumlack": "수분부족분",      "xabhum": "절대 습도",
+    "xdhum": "이슬점",              "xgndtemp": "지온",            "xwinddirec": "외부 풍향",
+    "xwindsp": "외부 풍속",         "xsunvol": "외부 일사량",      "xouttemp": "외부 온도",
+    "xsupplytemp1": "난방 공급온도","xreturntemp1": "난방 회수온도","xco2set": "CO2 설정값",
+    # 양액
+    "now_ec": "급액 EC",            "now_ph": "급액 pH",           "water_con": "함수율",
+    "medium_ec": "배지 EC",         "medium_temp": "배지 온도",    "pi_ec": "배액 EC",
+    # 창 개도
+    "xwinvol1_1": "창1좌 개도",     "xwinvol1_2": "창1우 개도",
+    "xwinvol2_1": "창2좌 개도",     "xwinvol2_2": "창2우 개도",
+    "xwinvol3_1": "창3좌 개도",     "xwinvol3_2": "창3우 개도",
+    "xwinvol4_1": "창4좌 개도",     "xwinvol4_2": "창4우 개도",
+    "xwinvol5_1": "창5좌 개도",     "xwinvol5_2": "창5우 개도",
+    "xwinvol6_1": "창6좌 개도",     "xwinvol6_2": "창6우 개도",
+    # 커튼 개도
+    "xcur1vol": "커튼1 개도",       "xcur2vol": "커튼2 개도",      "xcur3vol": "커튼3 개도",
+    "xcur4vol": "커튼4 개도",       "xcur5vol": "커튼5 개도",
+    # 3Way 밸브
+    "x3way1vol": "3Way밸브1 개도",  "x3way2vol": "3Way밸브2 개도",
+    # 창 자수동
+    "xwin1auto": "창1좌 자수동",    "xwin1auto2": "창1우 자수동",
+    "xwin2auto": "창2좌 자수동",    "xwin2auto2": "창2우 자수동",
+    "xwin3auto": "창3좌 자수동",    "xwin3auto2": "창3우 자수동",
+    "xwin4auto": "창4좌 자수동",    "xwin4auto2": "창4우 자수동",
+    "xwin5auto": "창5좌 자수동",    "xwin5auto2": "창5우 자수동",
+    "xwin6auto": "창6좌 자수동",    "xwin6auto2": "창6우 자수동",
+    # 커튼 자수동
+    "xcur1auto": "커튼1 자수동",    "xcur2auto": "커튼2 자수동",   "xcur3auto": "커튼3 자수동",
+    "xcur4auto": "커튼4 자수동",    "xcur5auto": "커튼5 자수동",
+    # 장치 자수동/작동
+    "xco2auto": "CO2 자수동",       "xco2run": "CO2 작동",
+    "xlightauto": "보광등 자수동",  "xlightrun": "보광등 작동",
+    "xhunauto": "훈증기 자수동",    "xhunrun": "훈증기 작동",
+    "xboauto": "보일러 자수동",     "xborun": "보일러 작동",
+    "xpumpauto": "순환펌프 자수동", "xpumprun1": "순환펌프1 작동", "xpumprun2": "순환펌프2 작동",
+    # 보조기기
+    "xass1auto": "보조기기1 자수동","xass1run": "보조기기1 작동",
+    "xass2auto": "보조기기2 자수동","xass2run": "보조기기2 작동",
+    "xass3auto": "보조기기3 자수동","xass3run": "보조기기3 작동",
+    "xass4auto": "보조기기4 자수동","xass4run": "보조기기4 작동",
+    "xass5auto": "보조기기5 자수동","xass5run": "보조기기5 작동",
+    "xass6auto": "보조기기6 자수동","xass6run": "보조기기6 작동",
+    # 냉난방기
+    "xheatandcool1auto": "냉난방기1 자수동","xheatandcool1run": "냉난방기1 작동",
+    "xheatandcool2auto": "냉난방기2 자수동","xheatandcool2run": "냉난방기2 작동",
+    "xheatandcool3auto": "냉난방기3 자수동","xheatandcool3run": "냉난방기3 작동",
+    "xheatandcool4auto": "냉난방기4 자수동","xheatandcool4run": "냉난방기4 작동",
+    "xheatandcool5auto": "냉난방기5 자수동","xheatandcool5run": "냉난방기5 작동",
 }
 
 @app.get("/api/logs/download")
