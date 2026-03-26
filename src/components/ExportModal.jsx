@@ -71,7 +71,7 @@ export default function ExportModal({ onClose }) {
           <select className="exp-select" value={field} onChange={e => setField(e.target.value)}>
             <option value="">전체 항목</option>
             {fields.map(f => (
-              <option key={f} value={f}>{FIELD_KO[f.toLowerCase()] ?? f}</option>
+              <option key={f} value={f}>{f}</option>
             ))}
           </select>
         </div>
