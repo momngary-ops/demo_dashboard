@@ -13,7 +13,7 @@
  * TODO: 팝업 화면 추가 필요 — 카드 클릭 시 상세 이탈 이력/차트 팝업
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { formatDuration } from '../../hooks/useDeviationTracker'
 import './DeviationPanel.css'
 
@@ -83,37 +83,29 @@ function DeviationCard({ slot, stats, onClose }) {
 }
 
 /**
- * @param {object[]} slots         OUT_OF_RANGE 슬롯 배열
+ * @param {object[]} slots         OUT_OF_RANGE 슬롯 배열 (비어있으면 null 반환)
  * @param {Map}      deviationStats 슬롯별 이탈 통계
  * @param {number}   expandTrigger  이 값이 바뀌면 패널을 자동으로 펼친다
- *                                  (DashboardPage에서 신규 이탈 감지 시 증가)
+ *
+ * ※ 부모에서 조건부 마운트하지 말 것 — 언마운트 시 collapsed/hiddenIds state 초기화됨
  */
 export default function DeviationPanel({ slots, deviationStats, expandTrigger }) {
   const [collapsed, setCollapsed] = useState(false)
   const [hiddenIds, setHiddenIds] = useState(new Set())
-  const prevIdsRef = useRef(new Set())
 
-  // 신규 이탈 신호 → 패널 자동 펼치기
+  // expandTrigger 변경(신규 이탈 감지) 시 자동 펼치기
+  // expandTrigger = 0은 초기 마운트이므로 무시
   useEffect(() => {
-    setCollapsed(false)
+    if (expandTrigger > 0) setCollapsed(false)
   }, [expandTrigger])
 
-  // slots에서 사라진 ID(센서 복귀 등)는 hiddenIds에서도 제거
+  // slots에서 사라진 ID(센서 복귀) → hiddenIds 정리
+  // 덕분에 재이탈 시 카드가 다시 등장
   useEffect(() => {
     const currentIds = new Set(slots?.map(s => s.id) ?? [])
-    // 이전에 없던 ID가 생기면 hiddenIds에서 제거 (재이탈 → 카드 재등장)
-    const newIds = slots?.filter(s => !prevIdsRef.current.has(s.id)).map(s => s.id) ?? []
-    prevIdsRef.current = currentIds
-
     setHiddenIds(prev => {
-      // 더 이상 이탈 중이 아닌 ID + 재이탈로 복귀한 ID 제거
-      const toRemove = new Set([
-        ...[...prev].filter(id => !currentIds.has(id)),
-        ...newIds,
-      ])
-      if (toRemove.size === 0) return prev
-      const next = new Set([...prev].filter(id => !toRemove.has(id)))
-      return next
+      const next = new Set([...prev].filter(id => currentIds.has(id)))
+      return next.size === prev.size ? prev : next
     })
   }, [slots])
 
@@ -127,6 +119,7 @@ export default function DeviationPanel({ slots, deviationStats, expandTrigger })
     setHiddenIds(new Set(slots?.map(s => s.id) ?? []))
   }
 
+  // slots가 비어있으면 렌더링 없음 (컴포넌트는 마운트 유지)
   if (!slots?.length) return null
 
   return (

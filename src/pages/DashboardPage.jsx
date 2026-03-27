@@ -512,15 +512,13 @@ export default function DashboardPage() {
         onZoneChange={setActiveZone}
       />
 
-      {/* 이탈 패널 — OUT_OF_RANGE 슬롯이 1개 이상인 경우 표시 */}
+      {/* 이탈 패널 — 항상 마운트 유지 (조건부 마운트 시 state 초기화 버그 발생) */}
       {/* TODO: 팝업 화면 추가 필요 — DeviationCard 클릭 시 상세 이탈 이력/차트 팝업 */}
-      {deviatedSlots.length > 0 && (
-        <DeviationPanel
-          slots={deviatedSlots}
-          deviationStats={deviationStats}
-          expandTrigger={deviationExpandKey}
-        />
-      )}
+      <DeviationPanel
+        slots={deviatedSlots}
+        deviationStats={deviationStats}
+        expandTrigger={deviationExpandKey}
+      />
 
       {/* 그리드 영역 */}
       <div
