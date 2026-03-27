@@ -18,12 +18,33 @@ import asyncio
 import sqlite3
 import csv
 import io
+import os
+import sys
 import time
+import fcntl
 from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
 from fastapi import Request
+
+# ── 단일 인스턴스 잠금 (중복 서비스 기동 방지) ────────────────────────────
+_LOCK_PATH = Path(__file__).parent / ".server.lock"
+_lock_fh: object = None
+
+def _acquire_instance_lock():
+    global _lock_fh
+    try:
+        _lock_fh = open(_LOCK_PATH, "w")
+        fcntl.flock(_lock_fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        _lock_fh.write(str(os.getpid()))
+        _lock_fh.flush()
+        print(f"[lock] dashboard-api 단일 인스턴스 잠금 획득 — PID {os.getpid()}")
+    except (IOError, BlockingIOError):
+        print("[lock] 이미 실행 중인 dashboard-api 인스턴스가 있습니다. 종료합니다.")
+        sys.exit(0)
+
+_acquire_instance_lock()
 
 try:
     from fastapi import FastAPI, HTTPException
@@ -492,9 +513,10 @@ DEFAULT_GUIDELINES = {
 }
 
 DEFAULT_ALERT_CONFIG = {
-    "temp":     {"enabled": True, "delay_min": 10, "deviation_pct": 0},
-    "humidity": {"enabled": True, "delay_min": 10, "deviation_pct": 0},
-    "co2":      {"enabled": True, "delay_min": 10, "deviation_pct": 10},
+    "temp":       {"enabled": True, "delay_min": 10, "deviation_pct": 0},
+    "humidity":   {"enabled": True, "delay_min": 10, "deviation_pct": 0},
+    "co2":        {"enabled": True, "delay_min": 10, "deviation_pct": 10},
+    "webhookUrl": "",
 }
 
 
@@ -537,6 +559,39 @@ def _save_alert(zone_id: str, field: str, value: float, range_min: float, range_
     print(f"[alert] {ts.isoformat()} zone={zone_id} field={field} val={value:.1f} range=[{range_min:.1f},{range_max:.1f}]")
 
 
+async def _send_teams_alert(webhook_url: str, zone_id: str, field: str, value: float, lo: float, hi: float, ts: datetime):
+    """Teams Incoming Webhook으로 가이드라인 이탈 알림 전송."""
+    label_map = {"xintemp1": "내부 온도", "xinhum1": "습도", "xco2": "CO₂"}
+    unit_map  = {"xintemp1": "°C",      "xinhum1": "%",   "xco2": "ppm"}
+    label = label_map.get(field, field)
+    unit  = unit_map.get(field, "")
+    payload = {
+        "@type":    "MessageCard",
+        "@context": "http://schema.org/extensions",
+        "themeColor": "FF4136",
+        "summary":  f"[스마트팜] {zone_id} {label} 범위 이탈",
+        "sections": [{
+            "activityTitle": f"⚠️ {zone_id} — {label} 범위 이탈",
+            "activityText": (
+                f"현재값: **{value:.1f}{unit}**  \n"
+                f"허용 범위: {lo:.1f} ~ {hi:.1f}{unit}  \n"
+                f"감지 시각: {ts.strftime('%Y-%m-%d %H:%M')} UTC"
+            ),
+        }],
+    }
+    try:
+        if _httpx:
+            async with _httpx.AsyncClient(timeout=10) as client:
+                r = await client.post(webhook_url, json=payload)
+                print(f"[teams] {zone_id}/{field} → HTTP {r.status_code}")
+        else:
+            import requests as _req
+            _req.post(webhook_url, json=payload, timeout=10)
+            print(f"[teams] {zone_id}/{field} → sent (sync fallback)")
+    except Exception as e:
+        print(f"[teams] 발송 실패: {e}")
+
+
 async def _check_zone_alert(zone_id: str, zone: dict, row: dict, cfg: dict, now: datetime):
     """단일 구역 알림 체크 + 버퍼 push (asyncio.gather로 병렬 호출)."""
     ctrl_url = zone.get("controllerUrl")
@@ -547,8 +602,17 @@ async def _check_zone_alert(zone_id: str, zone: dict, row: dict, cfg: dict, now:
         return
     raw = _extract_raw(data)
 
-    # 버퍼에 현재값 추가 (스파크라인 즉시성 개선)
-    _push_to_buffer(zone_id, raw)
+    # 양액기 데이터를 버퍼에 merge
+    merged = dict(raw)
+    nut_url = zone.get("nutrientUrl")
+    if nut_url:
+        nut_data, _ = await _fetch_url(nut_url)
+        if nut_data is not None:
+            nut_raw = _extract_raw(nut_data)
+            merged.update({k: v for k, v in nut_raw.items() if v not in (None, "")})
+
+    # 버퍼에 현재값 추가 (제어기 + 양액기 merge, 스파크라인 즉시성 개선)
+    _push_to_buffer(zone_id, merged)
 
     def _fval(key):
         v = raw.get(key) or raw.get(key.lower())
@@ -559,10 +623,11 @@ async def _check_zone_alert(zone_id: str, zone: dict, row: dict, cfg: dict, now:
 
     co2_ref = row["co2"]
     dev     = cfg["co2"].get("deviation_pct", 10) / 100
+    webhook = cfg.get("webhookUrl", "")
     checks  = [
-        ("xintemp1", _fval("xintemp1"), row["temp_min"], row["temp_max"],        cfg["temp"]),
-        ("xinhum1",  _fval("xinhum1"),  row["hum_min"],  row["hum_max"],         cfg["humidity"]),
-        ("xco2",     _fval("xco2"),     co2_ref * (1 - dev), co2_ref * (1 + dev), cfg["co2"]),
+        ("xintemp1", _fval("xintemp1"), row["temp_min"], row["temp_max"],             cfg["temp"]),
+        ("xinhum1",  _fval("xinhum1"),  row["hum_min"],  row["hum_max"],              cfg["humidity"]),
+        ("xco2",     _fval("xco2"),     co2_ref * (1 - dev), co2_ref * (1 + dev),     cfg["co2"]),
     ]
     for field, val, lo, hi, acfg in checks:
         if not acfg.get("enabled", True) or val is None:
@@ -578,6 +643,8 @@ async def _check_zone_alert(zone_id: str, zone: dict, row: dict, cfg: dict, now:
                 if elapsed_min >= acfg.get("delay_min", 10):
                     _save_alert(zone_id, field, val, lo, hi, now)
                     _alert_state[key]["alerted"] = True
+                    if webhook:
+                        await _send_teams_alert(webhook, zone_id, field, val, lo, hi, now)
         else:
             _alert_state[key] = {"out_since": None, "alerted": False}
 
@@ -673,6 +740,24 @@ async def _log_single_zone(zone_id: str, zone: dict, ts: str, skip: set) -> list
                 rows.append((ts, zone_id, k_lower, val))
         except (ValueError, TypeError):
             pass
+
+    # 양액기 데이터 추가 (nutrientUrl)
+    nut_url = zone.get("nutrientUrl")
+    if nut_url:
+        nut_data, _ = await _fetch_url(nut_url)
+        if nut_data is not None:
+            nut_raw = _extract_raw(nut_data)
+            for k, v in nut_raw.items():
+                k_lower = k.strip().lower()
+                if k_lower in skip:
+                    continue
+                try:
+                    val = float(v) if v not in (None, "") else None
+                    if val is not None:
+                        rows.append((ts, zone_id, k_lower, val))
+                except (ValueError, TypeError):
+                    pass
+
     return rows
 
 
@@ -965,7 +1050,7 @@ async def zone_nutrient(zone_id: str):
     nut_url = zone.get("nutrientUrl")
     if not nut_url:
         return {"fields": []}
-    data, err = await _fetch_url(nut_url)
+    data, err = await _fetch_url(nut_url, timeout=4)   # 클라이언트 5s abort보다 짧게
     if data is not None:
         if isinstance(data, dict) and "fields" in data:
             return data

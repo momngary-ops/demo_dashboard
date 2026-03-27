@@ -353,10 +353,18 @@ export default function DashboardPage() {
   }, [activeZoneId, farmConfig])
 
   // 위젯 슬롯에 구역 라벨 주입 후 알림 감시
-  const alertSlots = useMemo(
-    () => zoneLabel ? widgetKpiSlots.map(s => ({ ...s, zoneLabel })) : widgetKpiSlots,
-    [widgetKpiSlots, zoneLabel]
-  )
+  // avg-temp 등 kpiId 없는 위젯이 대시보드에만 있을 때도
+  // 핵심 KPI(내부 온도·습도·CO₂)는 항상 감시 대상에 포함
+  const CORE_ALERT_IDS = ['xintemp1', 'xinhum1', 'xco2']
+  const alertSlots = useMemo(() => {
+    const inject = s => zoneLabel ? { ...s, zoneLabel } : s
+    const primary = widgetKpiSlots.map(inject)
+    const primaryIds = new Set(primary.map(s => s.id))
+    const extra = secondaryKpiSlots
+      .filter(s => CORE_ALERT_IDS.includes(s.id) && !primaryIds.has(s.id))
+      .map(inject)
+    return [...primary, ...extra]
+  }, [widgetKpiSlots, secondaryKpiSlots, zoneLabel]) // eslint-disable-line
   useAlertNotifier(alertSlots)
 
   // C: 위젯별 현재 grid 크기 맵

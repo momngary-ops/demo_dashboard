@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNotification } from '../contexts/NotificationContext'
 import { GripHorizontal, X, Pencil, Plus } from 'lucide-react'
 import {
   ResponsiveContainer, LineChart, Line,
@@ -838,9 +837,7 @@ function MultiLineChartWidget({ config, kpiSlot, extraSlots, candidate, allCandi
 
 // ─── AvgTempWidget ───────────────────────────────────────────────────────────
 function AvgTempWidget({ config, kpiSlots, zoneId, gridSize }) {
-  const { addNotification } = useNotification()
   const [weekly, setWeekly] = useState(null)
-  const alertedRef = useRef({})
 
   useEffect(() => {
     if (!zoneId) return
@@ -863,22 +860,8 @@ function AvgTempWidget({ config, kpiSlots, zoneId, gridSize }) {
   const nightAvg = weekly?.week_night_avg ?? null
   const dailyAvg = weekly?.week_daily_avg ?? null
 
-  const isDayAlert   = dayAvg   !== null && dayAvg   >= 33
-  const isNightAlert = nightAvg !== null && nightAvg <= 15
-  const isAlert = isDayAlert || isNightAlert
-
-  useEffect(() => {
-    const now = Date.now()
-    const COOLDOWN = 30 * 60_000
-    if (isDayAlert && (!alertedRef.current.day || now - alertedRef.current.day > COOLDOWN)) {
-      alertedRef.current.day = now
-      addNotification({ title: '고온 경고', message: `주간 평균 ${dayAvg}°C (기준 33°C 초과)`, kpiId: 'avg_temp', status: 'OUT_OF_RANGE' })
-    }
-    if (isNightAlert && (!alertedRef.current.night || now - alertedRef.current.night > COOLDOWN)) {
-      alertedRef.current.night = now
-      addNotification({ title: '저온 경고', message: `야간 평균 ${nightAvg}°C (기준 15°C 미만)`, kpiId: 'avg_temp', status: 'OUT_OF_RANGE' })
-    }
-  }, [isDayAlert, isNightAlert, dayAvg, nightAvg, addNotification])
+  // 알림은 useAlertNotifier(xintemp1 기반)에서 처리 — 이 위젯에서 직접 발송하지 않음
+  const isAlert = false
 
   const chartData = (weekly?.days ?? []).map(d => ({
     date:      d.date?.slice(5),
