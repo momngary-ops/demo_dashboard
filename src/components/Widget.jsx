@@ -862,6 +862,7 @@ function AvgTempWidget({ config, kpiSlots, zoneId, gridSize }) {
 
   // 알림은 useAlertNotifier(xintemp1 기반)에서 처리 — 이 위젯에서 직접 발송하지 않음
   const isAlert = false
+  const isNightAlert = false
 
   const chartData = (weekly?.days ?? []).map(d => ({
     date:      d.date?.slice(5),

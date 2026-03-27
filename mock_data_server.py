@@ -21,7 +21,9 @@ import io
 import os
 import sys
 import time
-import fcntl
+import sys as _sys_plat
+if _sys_plat.platform != "win32":
+    import fcntl
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -36,11 +38,15 @@ def _acquire_instance_lock():
     global _lock_fh
     try:
         _lock_fh = open(_LOCK_PATH, "w")
-        fcntl.flock(_lock_fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if sys.platform == "win32":
+            import msvcrt
+            msvcrt.locking(_lock_fh.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            fcntl.flock(_lock_fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         _lock_fh.write(str(os.getpid()))
         _lock_fh.flush()
         print(f"[lock] dashboard-api 단일 인스턴스 잠금 획득 — PID {os.getpid()}")
-    except (IOError, BlockingIOError):
+    except (IOError, BlockingIOError, OSError):
         print("[lock] 이미 실행 중인 dashboard-api 인스턴스가 있습니다. 종료합니다.")
         sys.exit(0)
 
@@ -1164,6 +1170,37 @@ def admin_delete_zone(zone_id: str):
     if zone_id in zones:
         del zones[zone_id]
         _save_zone_config(config)
+    return {"success": True}
+
+
+# ══════════════════════════════════════════════════════════
+# Teams 알림 테스트
+# ══════════════════════════════════════════════════════════
+
+class TeamsNotifyRequest(BaseModel):
+    webhookUrl: str
+    payload: dict
+
+@app.post("/api/admin/notify/teams")
+async def admin_notify_teams(req: TeamsNotifyRequest):
+    """프론트에서 구성한 payload를 Teams Incoming Webhook으로 전달."""
+    try:
+        if _httpx:
+            async with _httpx.AsyncClient(timeout=10) as client:
+                r = await client.post(req.webhookUrl, json=req.payload)
+                print(f"[teams-test] → HTTP {r.status_code}")
+                if r.status_code not in (200, 202):
+                    raise HTTPException(status_code=502, detail=f"Teams responded {r.status_code}: {r.text[:200]}")
+        else:
+            import requests as _req
+            r = _req.post(req.webhookUrl, json=req.payload, timeout=10)
+            print(f"[teams-test] → HTTP {r.status_code} (sync)")
+            if r.status_code not in (200, 202):
+                raise HTTPException(status_code=502, detail=f"Teams responded {r.status_code}: {r.text[:200]}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
     return {"success": True}
 
 

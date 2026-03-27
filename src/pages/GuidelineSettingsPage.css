@@ -193,3 +193,33 @@
   font-size: 13px;
   color: #8899aa;
 }
+
+/* 알림 설정 구역 탭 */
+.gl-alert-zone-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.gl-alert-zone-tab {
+  padding: 4px 14px;
+  border-radius: 4px;
+  border: 1px solid #2a3a4a;
+  background: transparent;
+  color: #6688aa;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.gl-alert-zone-tab:hover { background: #1a2a38; }
+.gl-alert-zone-tab--active {
+  background: #2a4a6a;
+  color: #c8e0f8;
+  border-color: #3a6a9a;
+}
+
+.gl-alert-zone-hint {
+  font-size: 11px;
+  color: #4a6a8a;
+  margin: 0 0 10px;
+}

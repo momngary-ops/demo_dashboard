@@ -40,6 +40,11 @@
   background: color-mix(in srgb, var(--surface) 92%, #ef4444 8%);
 }
 
+.n-toast--good {
+  border-left-color: #4ade80;
+  background: color-mix(in srgb, var(--surface) 92%, #4ade80 8%);
+}
+
 .n-toast__emoji {
   font-size: 18px;
   line-height: 1;

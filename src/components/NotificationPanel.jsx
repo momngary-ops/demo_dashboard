@@ -4,9 +4,19 @@ import './NotificationPanel.css'
 
 const ALERT_META = {
   OUT_OF_RANGE: { label: '임계치 이탈',     emoji: '⚠️', color: 'warn' },
+  FLAPPING:     { label: '반복 이탈',       emoji: '🔁', color: 'warn' },
   STALE_CRIT:   { label: '데이터 수신 중단', emoji: '🔴', color: 'crit' },
   SENSOR_FAULT: { label: '센서 오류',        emoji: '🚨', color: 'crit' },
   SENSOR_LOST:  { label: '센서 연결 끊김',   emoji: '🔌', color: 'crit' },
+  RECOVERED:    { label: '정상 복귀',        emoji: '✅', color: 'good' },
+}
+
+const PREV_LABEL = {
+  OUT_OF_RANGE: '임계치 이탈',
+  STALE_CRIT:   '데이터 수신 중단',
+  SENSOR_FAULT: '센서 오류',
+  SENSOR_LOST:  '센서 연결 끊김',
+  FLAPPING:     '반복 이탈',
 }
 
 function fmtTime(iso) {
@@ -70,6 +80,12 @@ export default function NotificationPanel({ onClose }) {
                   )}
                   {n.status === 'OUT_OF_RANGE' && n.yMin != null && n.yMax != null && (
                     <span className="n-panel__item-range">정상범위 {n.yMin} ~ {n.yMax} {n.unit ?? ''}</span>
+                  )}
+                  {n.status === 'FLAPPING' && n.flapCount != null && (
+                    <span className="n-panel__item-range">딜레이 내 {n.flapCount}회 반복 이탈</span>
+                  )}
+                  {n.status === 'RECOVERED' && n.prevStatus && (
+                    <span className="n-panel__item-range">이전 상태: {PREV_LABEL[n.prevStatus] ?? n.prevStatus}</span>
                   )}
                   {n.zoneLabel && (
                     <span className="n-panel__item-zone">{n.zoneLabel}</span>

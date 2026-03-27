@@ -49,10 +49,23 @@ export function defaultApiConfig() {
   }
 }
 
-// 구버전 { id, label } → 신버전 { id, label, apiConfig } 으로 자동 마이그레이션
+// ─── 구역별 알림 설정 기본값 ──────────────────────────────────────────────────
+// null = 공통(가이드라인) 설정을 사용, 구역 탭에서 편집 시 이 값으로 초기화
+export function defaultZoneAlertConfig() {
+  return {
+    temp:     { enabled: true, delay_min: 1 },
+    humidity: { enabled: true, delay_min: 1 },
+    co2:      { enabled: true, delay_min: 10, deviation_pct: 10 },
+  }
+}
+
+// 구버전 → 신버전 자동 마이그레이션
 function migrateZone(z) {
-  if (z.apiConfig) return z
-  return { ...z, apiConfig: defaultApiConfig() }
+  let zone = z
+  if (!zone.apiConfig)    zone = { ...zone, apiConfig: defaultApiConfig() }
+  // alertConfig는 null(미설정) = 공통 설정 사용. undefined만 null로 채움
+  if (!('alertConfig' in zone)) zone = { ...zone, alertConfig: null }
+  return zone
 }
 
 export const DEFAULT_FARM_CONFIG = {

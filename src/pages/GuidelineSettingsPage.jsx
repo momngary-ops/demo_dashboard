@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useGuideline } from '../contexts/GuidelineContext'
+import { loadFarmConfig, saveFarmConfig, defaultZoneAlertConfig } from '../constants/farmSchema'
 import {
   ResponsiveContainer, AreaChart, Area,
   XAxis, YAxis, Tooltip, ReferenceLine, CartesianGrid,
@@ -18,12 +19,16 @@ export default function GuidelineSettingsPage() {
   const { guidelines: ctxGl, alertConfig: ctxAc, fetchGuidelines } = useGuideline() ?? {}
 
   // 로컬 편집 상태
-  const [localGl,  setLocalGl]  = useState(null)
-  const [localAc,  setLocalAc]  = useState(null)
-  const [tab,      setTab]      = useState('temp')   // 'temp' | 'hum' | 'co2'
-  const [month,    setMonth]    = useState(1)
-  const [saving,   setSaving]   = useState(false)
-  const [saved,    setSaved]    = useState(false)
+  const [localGl,      setLocalGl]      = useState(null)
+  const [localAc,      setLocalAc]      = useState(null)
+  const [tab,          setTab]          = useState('temp')   // 'temp' | 'hum' | 'co2'
+  const [month,        setMonth]        = useState(1)
+  const [saving,       setSaving]       = useState(false)
+  const [saved,        setSaved]        = useState(false)
+
+  // 구역별 알림 설정
+  const [farmCfg,      setFarmCfg]      = useState(() => loadFarmConfig())
+  const [alertZoneId,  setAlertZoneId]  = useState(null)  // null = 공통
 
   // 컨텍스트 데이터로 초기화
   useEffect(() => {
@@ -32,6 +37,13 @@ export default function GuidelineSettingsPage() {
   useEffect(() => {
     if (ctxAc)  setLocalAc(JSON.parse(JSON.stringify(ctxAc)))
   }, [ctxAc])
+
+  // 현재 탭의 alertConfig (공통 or 구역)
+  const activeAc = useMemo(() => {
+    if (alertZoneId === null) return localAc
+    const zone = farmCfg.zones.find(z => z.id === alertZoneId)
+    return zone?.alertConfig ?? defaultZoneAlertConfig()
+  }, [alertZoneId, localAc, farmCfg])
 
   const field = FIELDS.find(f => f.key === tab)
 
@@ -66,10 +78,33 @@ export default function GuidelineSettingsPage() {
   }
 
   function updateAlert(field, key, value) {
-    setLocalAc(prev => ({
-      ...prev,
-      [field]: { ...prev[field], [key]: value },
-    }))
+    if (alertZoneId === null) {
+      // 공통 설정 — 저장 버튼 클릭 시 서버(/api/guidelines)에 반영
+      setLocalAc(prev => ({
+        ...prev,
+        [field]: { ...prev[field], [key]: value },
+      }))
+    } else {
+      // 구역별 설정 — farmConfig에 즉시 저장
+      setFarmCfg(prev => {
+        const next = {
+          ...prev,
+          zones: prev.zones.map(z => {
+            if (z.id !== alertZoneId) return z
+            const base = z.alertConfig ?? defaultZoneAlertConfig()
+            return {
+              ...z,
+              alertConfig: {
+                ...base,
+                [field]: { ...base[field], [key]: value },
+              },
+            }
+          }),
+        }
+        saveFarmConfig(next)
+        return next
+      })
+    }
   }
 
   async function handleSave() {
@@ -209,44 +244,75 @@ export default function GuidelineSettingsPage() {
       {/* 알림 설정 */}
       <div className="gl-alert-section">
         <h3 className="gl-alert-title">알림 설정</h3>
-        <div className="gl-alert-grid">
-          {[
-            { key: 'temp',     label: '온도',  hasDev: false },
-            { key: 'humidity', label: '습도',  hasDev: false },
-            { key: 'co2',      label: 'CO₂',  hasDev: true  },
-          ].map(({ key, label, hasDev }) => (
-            <div key={key} className="gl-alert-row">
-              <label className="gl-alert-label">
-                <input
-                  type="checkbox"
-                  checked={localAc[key]?.enabled ?? true}
-                  onChange={e => updateAlert(key, 'enabled', e.target.checked)}
-                />
-                {label}
-              </label>
-              <span className="gl-alert-field">
-                딜레이
-                <input
-                  type="number" min="1" max="120" className="gl-input gl-input--sm"
-                  value={localAc[key]?.delay_min ?? 10}
-                  onChange={e => updateAlert(key, 'delay_min', +e.target.value)}
-                />
-                분
-              </span>
-              {hasDev && (
-                <span className="gl-alert-field">
-                  이탈율
+
+        {/* 구역 탭 — 구역이 1개 이상일 때만 표시 */}
+        {farmCfg.zones.length > 0 && (
+          <div className="gl-alert-zone-tabs">
+            <button
+              className={`gl-alert-zone-tab ${alertZoneId === null ? 'gl-alert-zone-tab--active' : ''}`}
+              onClick={() => setAlertZoneId(null)}
+            >
+              공통
+            </button>
+            {farmCfg.zones.map(z => (
+              <button
+                key={z.id}
+                className={`gl-alert-zone-tab ${alertZoneId === z.id ? 'gl-alert-zone-tab--active' : ''}`}
+                onClick={() => setAlertZoneId(z.id)}
+              >
+                {z.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {alertZoneId === null && farmCfg.zones.length > 0 && (
+          <p className="gl-alert-zone-hint">구역별 설정이 없는 경우 이 값이 적용됩니다.</p>
+        )}
+        {alertZoneId !== null && (
+          <p className="gl-alert-zone-hint">이 구역에만 적용됩니다. 변경 시 즉시 저장됩니다.</p>
+        )}
+
+        {activeAc && (
+          <div className="gl-alert-grid">
+            {[
+              { key: 'temp',     label: '온도',  hasDev: false },
+              { key: 'humidity', label: '습도',  hasDev: false },
+              { key: 'co2',      label: 'CO₂',  hasDev: true  },
+            ].map(({ key, label, hasDev }) => (
+              <div key={key} className="gl-alert-row">
+                <label className="gl-alert-label">
                   <input
-                    type="number" min="0" max="100" step="1" className="gl-input gl-input--sm"
-                    value={localAc[key]?.deviation_pct ?? 10}
-                    onChange={e => updateAlert(key, 'deviation_pct', +e.target.value)}
+                    type="checkbox"
+                    checked={activeAc[key]?.enabled ?? true}
+                    onChange={e => updateAlert(key, 'enabled', e.target.checked)}
                   />
-                  %
+                  {label}
+                </label>
+                <span className="gl-alert-field">
+                  딜레이
+                  <input
+                    type="number" min="1" max="120" className="gl-input gl-input--sm"
+                    value={activeAc[key]?.delay_min ?? 10}
+                    onChange={e => updateAlert(key, 'delay_min', +e.target.value)}
+                  />
+                  분
                 </span>
-              )}
-            </div>
-          ))}
-        </div>
+                {hasDev && (
+                  <span className="gl-alert-field">
+                    이탈율
+                    <input
+                      type="number" min="0" max="100" step="1" className="gl-input gl-input--sm"
+                      value={activeAc[key]?.deviation_pct ?? 10}
+                      onChange={e => updateAlert(key, 'deviation_pct', +e.target.value)}
+                    />
+                    %
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

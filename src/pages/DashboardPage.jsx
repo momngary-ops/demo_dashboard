@@ -20,6 +20,9 @@ import ExportModal from '../components/ExportModal'
 import { loadFarmConfig } from '../constants/farmSchema'
 import { useKpiPolling, clearZoneCache } from '../hooks/useKpiPolling'
 import { useAlertNotifier } from '../hooks/useAlertNotifier'
+import { useDeviationTracker } from '../hooks/useDeviationTracker'
+import { useGuideline } from '../contexts/GuidelineContext'
+import DeviationPanel from '../components/DeviationPanel/DeviationPanel'
 import { KPI_CANDIDATES } from '../constants/kpiCandidates'
 import { GAUGE_SET_GROUPS, STATUS_PANEL_GROUPS } from '../constants/actuatorCandidates'
 import { useCapabilities } from '../contexts/CapabilitiesContext'
@@ -150,6 +153,14 @@ function GridOverlay({ containerWidth }) {
       ))}
     </div>
   )
+}
+
+// 알림 대상 KPI — 가이드라인 연동
+const CORE_ALERT_IDS = ['xintemp1', 'xinhum1', 'xco2']
+const GL_KPI_MAP = {
+  xintemp1: { minKey: 'temp_min', maxKey: 'temp_max', acKey: 'temp' },
+  xinhum1:  { minKey: 'hum_min',  maxKey: 'hum_max',  acKey: 'humidity' },
+  xco2:     { refKey: 'co2',                           acKey: 'co2', isSingle: true },
 }
 
 export default function DashboardPage() {
@@ -352,20 +363,86 @@ export default function DashboardPage() {
     return farmConfig.zones.find(z => z.id === activeZoneId)?.label ?? null
   }, [activeZoneId, farmConfig])
 
+  // 가이드라인 기반 알림 임계값 override
+  const { guidelines, alertConfig: glAlertConfig } = useGuideline() ?? {}
+
   // 위젯 슬롯에 구역 라벨 주입 후 알림 감시
   // avg-temp 등 kpiId 없는 위젯이 대시보드에만 있을 때도
   // 핵심 KPI(내부 온도·습도·CO₂)는 항상 감시 대상에 포함
-  const CORE_ALERT_IDS = ['xintemp1', 'xinhum1', 'xco2']
   const alertSlots = useMemo(() => {
-    const inject = s => zoneLabel ? { ...s, zoneLabel } : s
-    const primary = widgetKpiSlots.map(inject)
+    const now    = new Date()
+    const glRow  = guidelines?.[String(now.getMonth() + 1)]?.find(r => r.hour === now.getHours()) ?? null
+
+    const applyOverride = s => {
+      const base = zoneLabel ? { ...s, zoneLabel } : { ...s }
+      const map  = GL_KPI_MAP[base.id]
+      if (!map) return base
+
+      // 구역별 설정 > 공통(가이드라인) 설정 순으로 우선 적용
+      const zoneAc       = farmConfig.zones[activeZone]?.alertConfig
+      const ac           = zoneAc?.[map.acKey] ?? glAlertConfig?.[map.acKey]
+      const alertDelayMin = ac?.delay_min ?? 3
+      const enabled      = ac?.enabled ?? false
+
+      // yMin/yMax 계산
+      let yMin = null, yMax = null
+      if (enabled && glRow) {
+        if (map.isSingle) {
+          const ref    = glRow[map.refKey]
+          const devRate = (ac?.deviation_pct ?? 10) / 100
+          if (ref && ref !== 0) { yMin = ref * (1 - devRate); yMax = ref * (1 + devRate) }
+        } else {
+          const mn = glRow[map.minKey], mx = glRow[map.maxKey]
+          if (!(mn === 0 && mx === 0) && mn <= mx) { yMin = mn; yMax = mx }
+        }
+      }
+
+      // 하드웨어/연결 상태는 그대로 통과, 범위 이탈만 재판정
+      const HW_STATUSES = ['LOADING', 'API_TIMEOUT', 'STALE_CRIT', 'STALE_WARN', 'NULL_DATA', 'SENSOR_LOST', 'SENSOR_FAULT']
+      let alertDataStatus = base.dataStatus
+      if (!HW_STATUSES.includes(base.dataStatus)) {
+        if (yMin !== null && yMax !== null && base.value !== null && base.value !== undefined) {
+          alertDataStatus = (base.value < yMin || base.value > yMax) ? 'OUT_OF_RANGE' : 'OK'
+        } else {
+          alertDataStatus = 'OK'
+        }
+      }
+
+      return {
+        ...base,
+        dataStatus: alertDataStatus,
+        alertDelayMin,
+        yMin: yMin ?? base.yMin,
+        yMax: yMax ?? base.yMax,
+      }
+    }
+
+    const primary    = widgetKpiSlots.map(applyOverride)
     const primaryIds = new Set(primary.map(s => s.id))
-    const extra = secondaryKpiSlots
+    const extra      = secondaryKpiSlots
       .filter(s => CORE_ALERT_IDS.includes(s.id) && !primaryIds.has(s.id))
-      .map(inject)
+      .map(applyOverride)
     return [...primary, ...extra]
-  }, [widgetKpiSlots, secondaryKpiSlots, zoneLabel]) // eslint-disable-line
+  }, [widgetKpiSlots, secondaryKpiSlots, zoneLabel, guidelines, glAlertConfig]) // eslint-disable-line
   useAlertNotifier(alertSlots)
+
+  // 이탈 패널 — 접기/펼치기 제어
+  const [devPanelCollapsed, setDevPanelCollapsed] = useState(false)
+  const prevDeviatedIdsRef = useRef(new Set())
+
+  const deviatedSlots  = useMemo(
+    () => alertSlots.filter(s => s.dataStatus === 'OUT_OF_RANGE'),
+    [alertSlots]
+  )
+  const deviationStats = useDeviationTracker(alertSlots)
+
+  // 신규 이탈 발생 시 패널 자동 펼치기
+  useEffect(() => {
+    const prevIds = prevDeviatedIdsRef.current
+    const hasNew  = deviatedSlots.some(s => !prevIds.has(s.id))
+    prevDeviatedIdsRef.current = new Set(deviatedSlots.map(s => s.id))
+    if (hasNew) setDevPanelCollapsed(false)
+  }, [deviatedSlots])
 
   // C: 위젯별 현재 grid 크기 맵
   const sizeMap = Object.fromEntries(currentLayout.map(l => [l.i, { w: l.w, h: l.h }]))
@@ -434,6 +511,17 @@ export default function DashboardPage() {
         activeZone={activeZone}
         onZoneChange={setActiveZone}
       />
+
+      {/* 이탈 패널 — OUT_OF_RANGE 슬롯이 1개 이상인 경우 표시 */}
+      {/* TODO: 팝업 화면 추가 필요 — DeviationCard 클릭 시 상세 이탈 이력/차트 팝업 */}
+      {deviatedSlots.length > 0 && (
+        <DeviationPanel
+          slots={deviatedSlots}
+          deviationStats={deviationStats}
+          collapsed={devPanelCollapsed}
+          onToggleCollapse={() => setDevPanelCollapsed(v => !v)}
+        />
+      )}
 
       {/* 그리드 영역 */}
       <div

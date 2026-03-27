@@ -3,10 +3,20 @@ import { useNotification } from '../contexts/NotificationContext'
 import './NotificationToast.css'
 
 const ALERT_META = {
-  OUT_OF_RANGE: { label: '임계치 이탈',    color: 'warn',  emoji: '⚠️' },
+  OUT_OF_RANGE: { label: '임계치 이탈',     color: 'warn', emoji: '⚠️' },
+  FLAPPING:     { label: '반복 이탈',       color: 'warn', emoji: '🔁' },
   STALE_CRIT:   { label: '데이터 수신 중단', color: 'crit', emoji: '🔴' },
-  SENSOR_FAULT: { label: '센서 오류',       color: 'crit',  emoji: '🚨' },
+  SENSOR_FAULT: { label: '센서 오류',        color: 'crit', emoji: '🚨' },
   SENSOR_LOST:  { label: '센서 연결 끊김',   color: 'crit', emoji: '🔌' },
+  RECOVERED:    { label: '정상 복귀',        color: 'good', emoji: '✅' },
+}
+
+const PREV_LABEL = {
+  OUT_OF_RANGE: '임계치 이탈',
+  STALE_CRIT:   '데이터 수신 중단',
+  SENSOR_FAULT: '센서 오류',
+  SENSOR_LOST:  '센서 연결 끊김',
+  FLAPPING:     '반복 이탈',
 }
 
 const TOAST_DURATION = 8_000
@@ -36,6 +46,12 @@ function SingleToast({ toast, onDismiss }) {
         )}
         {toast.status === 'OUT_OF_RANGE' && toast.yMin != null && toast.yMax != null && (
           <span className="n-toast__range">정상범위 {toast.yMin} ~ {toast.yMax} {toast.unit ?? ''}</span>
+        )}
+        {toast.status === 'FLAPPING' && toast.flapCount != null && (
+          <span className="n-toast__range">딜레이 내 {toast.flapCount}회 반복 이탈</span>
+        )}
+        {toast.status === 'RECOVERED' && toast.prevStatus && (
+          <span className="n-toast__range">이전 상태: {PREV_LABEL[toast.prevStatus] ?? toast.prevStatus}</span>
         )}
         {toast.zoneLabel && (
           <span className="n-toast__zone">{toast.zoneLabel}</span>
