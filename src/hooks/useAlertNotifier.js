@@ -18,11 +18,11 @@
 
 import { useEffect, useRef } from 'react'
 import { useNotification } from '../contexts/NotificationContext'
+import { useGuideline } from '../contexts/GuidelineContext'
 import { sendTeamsAlert, sendTeamsRecovery } from '../utils/teamsNotifier'
 
 /** 알림을 트리거하는 상태 집합 */
 const ALERT_STATUSES = new Set(['OUT_OF_RANGE', 'STALE_CRIT', 'SENSOR_FAULT', 'SENSOR_LOST'])
-const FLAP_THRESHOLD = 3
 
 export const ALERT_CONFIG_KEY = 'alert:config'
 
@@ -67,6 +67,7 @@ export function useAlertNotifier(slots) {
   const outSinceRef  = useRef({})   // { [slotId]: timestamp(ms) } — 이탈 최초 감지 시각
   const flapCountRef = useRef({})   // { [slotId]: number } — 딜레이 내 복귀 횟수
   const { addNotification } = useNotification()
+  const { alertConfig: glAlertConfig } = useGuideline() ?? {}
 
   useEffect(() => {
     if (!slots?.length) return
@@ -90,7 +91,7 @@ export function useAlertNotifier(slots) {
           flapCountRef.current[slot.id] = count
           delete outSinceRef.current[slot.id]
 
-          if (count >= FLAP_THRESHOLD) {
+          if (count >= (glAlertConfig?.flapThreshold ?? 3)) {
             flapCountRef.current[slot.id] = 0
 
             addNotification({
@@ -113,19 +114,8 @@ export function useAlertNotifier(slots) {
           }
         }
 
-        // RECOVERED — 경고 발송 이력 있음 + 쿨다운 내 복귀
+        // RECOVERED — 경고 발송 이력 있음 + 쿨다운 내 복귀 (Teams만 전송, 인앱 억제)
         if (wasSent(slot.id, prev) && isInCooldown(slot.id, prev, cooldownMin)) {
-          addNotification({
-            kpiId:      slot.id,
-            status:     'RECOVERED',
-            title:      slot.title,
-            icon:       slot.icon,
-            value:      slot.value,
-            unit:       slot.unit,
-            zoneLabel:  slot.zoneLabel ?? null,
-            prevStatus: prev,
-          })
-
           if (cfg.enabled && cfg.webhookUrl) {
             sendTeamsRecovery(cfg.webhookUrl, { ...slot, prevStatus: prev })
               .catch(err => console.warn('[Alert] Teams RECOVERED 알림 실패:', err.message))
@@ -175,5 +165,5 @@ export function useAlertNotifier(slots) {
 
       prevRef.current[slot.id] = curr
     }
-  }, [slots, addNotification])
+  }, [slots, addNotification, glAlertConfig])
 }

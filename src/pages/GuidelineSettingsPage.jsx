@@ -311,6 +311,23 @@ export default function GuidelineSettingsPage() {
                 )}
               </div>
             ))}
+            {alertZoneId === null && (
+              <div className="gl-alert-row gl-alert-row--global">
+                <span className="gl-alert-label gl-alert-label--plain">FLAPPING 감지</span>
+                <span className="gl-alert-field">
+                  딜레이 내
+                  <input
+                    type="number" min="2" max="10" step="1" className="gl-input gl-input--sm"
+                    value={localAc?.flapThreshold ?? 3}
+                    onChange={e => setLocalAc(prev => ({
+                      ...prev,
+                      flapThreshold: Math.max(2, Math.min(10, parseInt(e.target.value) || 3)),
+                    }))}
+                  />
+                  회 이상 반복 이탈 시 알림
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>

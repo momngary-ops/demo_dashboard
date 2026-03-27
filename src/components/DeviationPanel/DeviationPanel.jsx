@@ -13,7 +13,7 @@
  * TODO: 팝업 화면 추가 필요 — 카드 클릭 시 상세 이탈 이력/차트 팝업
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { formatDuration } from '../../hooks/useDeviationTracker'
 import './DeviationPanel.css'
 
@@ -82,26 +82,45 @@ function DeviationCard({ slot, stats, onClose }) {
   )
 }
 
-export default function DeviationPanel({ slots, deviationStats, collapsed, onToggleCollapse }) {
+/**
+ * @param {object[]} slots         OUT_OF_RANGE 슬롯 배열
+ * @param {Map}      deviationStats 슬롯별 이탈 통계
+ * @param {number}   expandTrigger  이 값이 바뀌면 패널을 자동으로 펼친다
+ *                                  (DashboardPage에서 신규 이탈 감지 시 증가)
+ */
+export default function DeviationPanel({ slots, deviationStats, expandTrigger }) {
+  const [collapsed, setCollapsed] = useState(false)
   const [hiddenIds, setHiddenIds] = useState(new Set())
+  const prevIdsRef = useRef(new Set())
+
+  // 신규 이탈 신호 → 패널 자동 펼치기
+  useEffect(() => {
+    setCollapsed(false)
+  }, [expandTrigger])
 
   // slots에서 사라진 ID(센서 복귀 등)는 hiddenIds에서도 제거
   useEffect(() => {
     const currentIds = new Set(slots?.map(s => s.id) ?? [])
+    // 이전에 없던 ID가 생기면 hiddenIds에서 제거 (재이탈 → 카드 재등장)
+    const newIds = slots?.filter(s => !prevIdsRef.current.has(s.id)).map(s => s.id) ?? []
+    prevIdsRef.current = currentIds
+
     setHiddenIds(prev => {
-      const next = new Set([...prev].filter(id => currentIds.has(id)))
-      return next.size === prev.size ? prev : next
+      // 더 이상 이탈 중이 아닌 ID + 재이탈로 복귀한 ID 제거
+      const toRemove = new Set([
+        ...[...prev].filter(id => !currentIds.has(id)),
+        ...newIds,
+      ])
+      if (toRemove.size === 0) return prev
+      const next = new Set([...prev].filter(id => !toRemove.has(id)))
+      return next
     })
   }, [slots])
 
   const visibleSlots = slots?.filter(s => !hiddenIds.has(s.id)) ?? []
 
   function hideCard(id) {
-    setHiddenIds(prev => {
-      const next = new Set(prev)
-      next.add(id)
-      return next
-    })
+    setHiddenIds(prev => new Set([...prev, id]))
   }
 
   function hideAll() {
@@ -126,7 +145,7 @@ export default function DeviationPanel({ slots, deviationStats, collapsed, onTog
           )}
           <button
             className="dev-panel__collapse"
-            onClick={onToggleCollapse}
+            onClick={() => setCollapsed(v => !v)}
             title={collapsed ? '펼치기' : '접기'}
           >
             {collapsed ? '▼' : '▲'}

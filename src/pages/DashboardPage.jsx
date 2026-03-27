@@ -426,8 +426,8 @@ export default function DashboardPage() {
   }, [widgetKpiSlots, secondaryKpiSlots, zoneLabel, guidelines, glAlertConfig]) // eslint-disable-line
   useAlertNotifier(alertSlots)
 
-  // 이탈 패널 — 접기/펼치기 제어
-  const [devPanelCollapsed, setDevPanelCollapsed] = useState(false)
+  // 이탈 패널
+  const [deviationExpandKey, setDeviationExpandKey] = useState(0)
   const prevDeviatedIdsRef = useRef(new Set())
 
   const deviatedSlots  = useMemo(
@@ -436,12 +436,12 @@ export default function DashboardPage() {
   )
   const deviationStats = useDeviationTracker(alertSlots)
 
-  // 신규 이탈 발생 시 패널 자동 펼치기
+  // 신규 이탈 발생 시 패널 자동 펼치기 신호
   useEffect(() => {
     const prevIds = prevDeviatedIdsRef.current
     const hasNew  = deviatedSlots.some(s => !prevIds.has(s.id))
     prevDeviatedIdsRef.current = new Set(deviatedSlots.map(s => s.id))
-    if (hasNew) setDevPanelCollapsed(false)
+    if (hasNew) setDeviationExpandKey(k => k + 1)
   }, [deviatedSlots])
 
   // C: 위젯별 현재 grid 크기 맵
@@ -518,8 +518,7 @@ export default function DashboardPage() {
         <DeviationPanel
           slots={deviatedSlots}
           deviationStats={deviationStats}
-          collapsed={devPanelCollapsed}
-          onToggleCollapse={() => setDevPanelCollapsed(v => !v)}
+          expandTrigger={deviationExpandKey}
         />
       )}
 
