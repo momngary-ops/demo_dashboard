@@ -1,0 +1,452 @@
+/* ================================================
+   Keyframes
+   ================================================ */
+@keyframes sunSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes cloudFloat {
+  0%, 100% { transform: translateX(0) scale(var(--sc, 1)); }
+  50%       { transform: translateX(10px) scale(var(--sc, 1)); }
+}
+@keyframes rainFall {
+  from { transform: translateY(-10px); opacity: 0; }
+  10%  { opacity: 1; }
+  to   { transform: translateY(220px); opacity: 0; }
+}
+@keyframes snowFall {
+  from { transform: translateY(-16px) translateX(0); opacity: 0; }
+  10%  { opacity: 0.85; }
+  to   { transform: translateY(220px) translateX(18px); opacity: 0; }
+}
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.8); }
+  50%       { opacity: 1;    transform: scale(1.2); }
+}
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.7; }
+}
+@keyframes spinnerRot {
+  to { transform: rotate(360deg); }
+}
+
+/* ================================================
+   TopBanner 컨테이너
+   ================================================ */
+.topbanner {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.topbanner__bg {
+  position: absolute;
+  inset: 0;
+  transition: background 1s ease-in-out;
+}
+
+.topbanner__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.topbanner__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ================================================
+   날씨 애니메이션 요소
+   ================================================ */
+.wb-anim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.wb-sun {
+  top: 8px;
+  right: 24px;
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  animation: sunSpin 12s linear infinite;
+}
+
+.wb-cloud {
+  position: absolute;
+  animation: cloudFloat 4s ease-in-out infinite;
+}
+
+.wb-raindrop {
+  position: absolute;
+  top: -22px;
+  width: 1.5px;
+  background: rgba(147, 197, 253, 0.75);
+  border-radius: 1px;
+  animation: rainFall linear infinite;
+}
+
+.wb-snowflake {
+  position: absolute;
+  top: -20px;
+  color: rgba(186, 230, 253, 0.9);
+  animation: snowFall ease-in infinite;
+}
+
+.wb-star {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  animation: starTwinkle ease-in-out infinite;
+}
+
+/* ================================================
+   구역 탭 행
+   ================================================ */
+.topbanner__zone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 16px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* 하단 접기/펼치기 바 */
+.topbanner__collapse-bar {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.22);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+.topbanner__collapse-bar:hover {
+  background: rgba(0, 0, 0, 0.38);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ================================================
+   요약 바 (compact 모드)
+   ================================================ */
+.topbanner__compact-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 16px;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease;
+}
+.topbanner__compact-bar--visible {
+  max-height: 48px;
+  opacity: 1;
+  padding: 6px 16px;
+}
+
+.topbanner__compact-zone {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  margin-right: 6px;
+}
+
+.topbanner__compact-items {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  gap: 0;
+}
+
+.topbanner__compact-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.topbanner__compact-sep {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0 4px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.topbanner__compact-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.topbanner__compact-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ================================================
+   전체 콘텐츠 영역 — compact 시 접힘
+   ================================================ */
+.topbanner__full {
+  overflow: hidden;
+  max-height: 200px;
+  opacity: 1;
+  transition: max-height 0.3s ease, opacity 0.25s ease;
+}
+.topbanner__full--hidden {
+  max-height: 0;
+  opacity: 0;
+}
+
+.zone-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.zone-tabs__tab {
+  padding: 4px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+  border-radius: 4px 4px 0 0;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.zone-tabs__tab:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+}
+.zone-tabs__tab--active {
+  color: #fff;
+  border-bottom-color: #E5401A;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ================================================
+   정보 행 (타이틀 + 업데이트 + 항목변경 버튼)
+   ================================================ */
+.topbanner__info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 16px;
+}
+
+.topbanner__info-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbanner__farm-name {
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.topbanner__zone-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.topbanner__zone-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.topbanner__updated {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.topbanner__kpi-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: background 0.2s;
+  backdrop-filter: blur(4px);
+}
+.topbanner__kpi-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ================================================
+   카드 행
+   ================================================ */
+.topbanner__cards {
+  display: flex;
+  gap: 8px;
+  padding: 6px 16px 10px;
+  align-items: stretch;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.topbanner__cards::-webkit-scrollbar { height: 3px; }
+.topbanner__cards::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
+
+/* ================================================
+   고정 카드 (외부온도)
+   ================================================ */
+.fixed-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
+  flex-shrink: 0;
+  gap: 3px;
+}
+.fixed-card__icon  { font-size: 24px; line-height: 1; }
+.fixed-card__label { font-size: 10px; color: rgba(255,255,255,0.7); font-weight: 500; }
+.fixed-card__value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.25);
+}
+.fixed-card__unit  { font-size: 14px; font-weight: 400; margin-left: 2px; color: rgba(255,255,255,0.8); }
+
+/* ================================================
+   가변 KPI 카드
+   ================================================ */
+.var-card {
+  flex: 1;
+  min-width: 0;
+  border-radius: 8px;
+  padding: 7px 9px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: opacity 0.3s;
+  overflow: hidden;
+}
+
+.var-card__header {
+  display: flex;
+  align-items: center;
+}
+
+.var-card__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.var-card__value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.var-card__unit {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  margin-left: 3px;
+}
+
+.var-card__spark {
+  height: 28px;
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.var-card__timestamp {
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.var-card__msg {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+}
+.var-card__icon-lg { font-size: 18px; line-height: 1; }
+
+/* API_TIMEOUT 스피너 */
+.var-card__spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: rgba(255,255,255,0.7);
+  border-radius: 50%;
+  animation: spinnerRot 0.8s linear infinite;
+}
+
+/* ================================================
+   Skeleton
+   ================================================ */
+.skeleton {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+.sk-sm    { height: 10px; width: 60%;  margin-bottom: 4px; }
+.sk-lg    { height: 22px; width: 80%; }
+.sk-spark { height: 28px; width: 100%; margin-top: 4px; }
+
+/* ================================================
+   반응형
+   ================================================ */
+@media (max-width: 767px) {
+  .topbanner__farm-name { font-size: 20px; }
+  .topbanner__info-row  { padding: 4px 12px; }
+  .topbanner__cards     { padding: 4px 12px 8px; gap: 6px; }
+  .fixed-card           { min-width: 90px; padding: 6px 12px; }
+  .fixed-card__value    { font-size: 24px; }
+  .var-card             { min-width: 100px; }
+  .var-card__value      { font-size: 18px; }
+  .topbanner__zone-row  { padding: 5px 12px; }
+  .zone-tabs__tab       { padding: 3px 9px; font-size: 11px; }
+}
+
+@media (max-width: 480px) {
+  .topbanner__kpi-btn   { display: none; }
+  .topbanner__farm-name { font-size: 17px; }
+}

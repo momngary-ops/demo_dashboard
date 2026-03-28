@@ -1,0 +1,67 @@
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+import math
+
+# 1. 초기 설정
+start_time = datetime(2026, 3, 17, 0, 0, 0) # 시작 시간 자정
+minutes_in_day = 1440
+data = []
+
+# 상태 변수 초기화
+current_water_con = 65.0 # 초기 함수율 (%)
+heater_target_temp = 18.0 # 난방 설정 온도
+
+for i in range(minutes_in_day):
+    # 001. 저장시각 (1분 간격)
+    current_time = start_time + timedelta(minutes=i)
+    hour = current_time.hour
+    
+    # 039. 주야간상태 (06:30 ~ 18:30 주간)
+    is_daytime = 1 if (hour > 6 or (hour == 6 and current_time.minute >= 30)) and (hour < 18 or (hour == 18 and current_time.minute < 30)) else 0
+    
+    # 시간(분)을 라디안으로 변환 (하루를 1주기로 하는 Sine 곡선용, 최저기온 새벽 5시 기준)
+    time_rad = ((i - 300) / minutes_in_day) * 2 * math.pi
+    
+    # 003. 외부온도 (xouttemp): 10°C ~ 25°C 사이 변동 + 랜덤 노이즈
+    xouttemp = 17.5 + 7.5 * math.sin(time_rad) + np.random.normal(0, 0.2)
+    
+    # 008. 내부일사량 (xinsunvol): 주간에만 발생 (0 ~ 500 W/m²)
+    if is_daytime:
+        sun_rad = ((i - 390) / 720) * math.pi # 06:30(390분)부터 12시간 기준
+        xinsunvol = max(0, 500 * math.sin(sun_rad) + np.random.normal(0, 10))
+    else:
+        xinsunvol = 0.0
+        
+    # 020. 내부온도 (xintemp1): 외부온도 영향 + 일사량 영향 + 난방 하한선
+    xintemp1 = xouttemp + (xinsunvol * 0.01) + np.random.normal(0, 0.1)
+    if xintemp1 < heater_target_temp:
+        xintemp1 = heater_target_temp + np.random.normal(0, 0.2)
+        
+    # 021. 내부습도 (xinhum1): 온도와 역상관관계 (온도가 오르면 습도는 내림)
+    xinhum1 = max(40, min(95, 100 - (xintemp1 * 1.5) + np.random.normal(0, 1)))
+    
+    # 038. 보일러작동상태 (xborun): 내부온도가 난방설정온도 근처로 떨어지면 작동
+    xborun = 1 if xintemp1 <= (heater_target_temp + 0.5) else 0
+    
+    # 058. 함수율 (water_con): 시간에 따라 감소하다가 특정 시간(예: 오전 8시, 오후 2시)에 급액
+    if (hour == 8 and current_time.minute == 0) or (hour == 14 and current_time.minute == 0):
+        current_water_con = 80.0 # 관수 시 함수율 치솟음
+    else:
+        current_water_con = max(45.0, current_water_con - 0.05 + np.random.normal(0, 0.01)) # 서서히 감소
+        
+    # 행 데이터 추가
+    data.append({
+        'xdatetime': current_time.strftime('%Y-%m-%d %H:%M:%S'),
+        'xjuya': is_daytime,
+        'xouttemp': round(xouttemp, 1),
+        'xinsunvol': round(xinsunvol, 1),
+        'xintemp1': round(xintemp1, 1),
+        'xinhum1': round(xinhum1, 1),
+        'xborun': xborun,
+        'water_con': round(current_water_con, 1)
+    })
+
+# DataFrame 변환 및 CSV 저장
+df = pd.DataFrame(data)
+df.to_csv('mock_climate_data.csv', index=False)

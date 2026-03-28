@@ -1,0 +1,82 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:               #0e1117;
+  --sidebar-bg:       #13161e;
+  --sidebar-hover:    #1c2028;
+  --sidebar-active:   #212630;
+  --header-bg:        #13161e;
+  --surface:          #161a23;
+  --surface-2:        #1d2230;
+  --border:           #252b38;
+  --text-primary:     #dde8f0;
+  --text-secondary:   #7a8a9e;
+  --text-muted:       #444e5f;
+  --accent:           #E5401A;
+  --accent-hover:     #F05228;
+  --danger:           #e05c5c;
+
+  --sidebar-w:        220px;
+  --sidebar-w-sm:     56px;
+  --header-h:         56px;
+  --radius:           8px;
+  --transition:       0.2s ease;
+
+  font-family: 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+body {
+  overflow: hidden;
+  height: 100vh;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+/* ── 반응형 변수 ─────────────────────────────── */
+@media (max-width: 1199px) {
+  :root {
+    --sidebar-w:    56px;
+    --sidebar-w-sm: 56px;
+  }
+}
+@media (max-width: 767px) {
+  :root {
+    --sidebar-w:    0px;
+    --sidebar-w-sm: 0px;
+    --header-h:     48px;
+    font-size:      12px;
+  }
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* react-grid-layout overrides */
+.react-grid-item.react-grid-placeholder {
+  background: var(--accent);
+  opacity: 0.12;
+  border-radius: var(--radius);
+  transition-duration: 100ms;
+}
