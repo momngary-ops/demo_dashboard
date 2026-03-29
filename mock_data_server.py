@@ -1078,6 +1078,62 @@ def zone_recent(zone_id: str, field: Optional[str] = None, limit: int = BUFFER_M
     return buf
 
 
+@app.get("/api/zone/{zone_id}/temp-weekly-avg")
+def zone_temp_weekly_avg(zone_id: str):
+    """구역 내부온도(xintemp1) 주간 통계 — 평균 온도 위젯용.
+
+    반환:
+      week_day_avg  : 최근 7일 주간(6~18시) 평균 온도
+      week_night_avg: 최근 7일 야간(18~6시 외) 평균 온도
+      week_daily_avg: 최근 7일 일평균 온도
+      days: [{date, day_high, daily_avg, night_low}] — 일별 통계 (차트용)
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        rows = conn.execute("""
+            SELECT
+                date(ts)                                                               AS day,
+                MAX(CASE WHEN CAST(strftime('%H', ts) AS INTEGER) BETWEEN 6 AND 17
+                         THEN value END)                                               AS day_high,
+                AVG(CASE WHEN CAST(strftime('%H', ts) AS INTEGER) BETWEEN 6 AND 17
+                         THEN value END)                                               AS day_avg,
+                MIN(CASE WHEN CAST(strftime('%H', ts) AS INTEGER) NOT BETWEEN 6 AND 17
+                         THEN value END)                                               AS night_low,
+                AVG(CASE WHEN CAST(strftime('%H', ts) AS INTEGER) NOT BETWEEN 6 AND 17
+                         THEN value END)                                               AS night_avg,
+                AVG(value)                                                             AS daily_avg
+            FROM kpi_log
+            WHERE zone_id = ?
+              AND field    = 'xintemp1'
+              AND ts       >= datetime('now', '-7 days')
+            GROUP BY date(ts)
+            ORDER BY day ASC
+        """, (zone_id,)).fetchall()
+        conn.close()
+    except Exception as e:
+        return {"error": str(e), "days": []}
+
+    days, day_avgs, night_avgs, daily_avgs = [], [], [], []
+    for r in rows:
+        day_str, day_high, day_avg, night_low, night_avg, daily_avg = r
+        days.append({
+            "date":      day_str,
+            "day_high":  round(day_high,  1) if day_high  is not None else None,
+            "daily_avg": round(daily_avg, 1) if daily_avg is not None else None,
+            "night_low": round(night_low, 1) if night_low is not None else None,
+        })
+        if day_avg   is not None: day_avgs.append(day_avg)
+        if night_avg is not None: night_avgs.append(night_avg)
+        if daily_avg is not None: daily_avgs.append(daily_avg)
+
+    return {
+        "week_day_avg":   round(sum(day_avgs)   / len(day_avgs),   1) if day_avgs   else None,
+        "week_night_avg": round(sum(night_avgs) / len(night_avgs), 1) if night_avgs else None,
+        "week_daily_avg": round(sum(daily_avgs) / len(daily_avgs), 1) if daily_avgs else None,
+        "days": days,
+    }
+
+
 # ══════════════════════════════════════════════════════════
 # 어드민: 구역 설정 CRUD
 # ══════════════════════════════════════════════════════════

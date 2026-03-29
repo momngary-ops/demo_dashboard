@@ -19,8 +19,12 @@ function fmt(v) {
 
 // ─── SparklineSVG ────────────────────────────────────────────────────────────
 // glBands: [{ startPct, endPct, min, max }] — 24h 시간대별 가이드라인 밴드
+// 경계 연속성: 동일한 fullD 경로를 clipPath로 분할 → 경계에서 끊김 없음
 // 정상 구간: #6AC8C7(teal), 이탈 구간: #f59e0b(orange), 밴드 없음: currentColor
 function SparklineSVG({ data, glBands }) {
+  // 인스턴스별 고유 ID — SVG defs 충돌 방지 (복수 위젯 공존 시)
+  const uid = useRef(`spk${Math.random().toString(36).slice(2, 6)}`).current
+
   if (!data || data.length < 2) return null
 
   const W = 200, H = 60, PAD = 6
@@ -46,31 +50,26 @@ function SparklineSVG({ data, glBands }) {
     y: toY(v),
   }))
 
-  // Catmull-Rom → Cubic Bezier (tension 0.3) — 글로벌 인덱스로 접선 계산 → 세그먼트 경계 C1 연속
+  // Catmull-Rom → Cubic Bezier (tension 0.3) — 전체 경로 1개 생성
   const tension = 0.3
-  const buildPath = (si, ei) => {
-    if (si >= ei) return ''
-    let d = `M ${points[si].x.toFixed(2)},${points[si].y.toFixed(2)}`
-    for (let i = si; i < ei; i++) {
-      const p0 = points[Math.max(0, i - 1)]
-      const p1 = points[i]
-      const p2 = points[i + 1]
-      const p3 = points[Math.min(pts - 1, i + 2)]
-      const cp1x = p1.x + (p2.x - p0.x) * tension
-      const cp1y = p1.y + (p2.y - p0.y) * tension
-      const cp2x = p2.x - (p3.x - p1.x) * tension
-      const cp2y = p2.y - (p3.y - p1.y) * tension
-      d += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`
-    }
-    return d
+  let fullD = `M ${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`
+  for (let i = 0; i < pts - 1; i++) {
+    const p0 = points[Math.max(0, i - 1)]
+    const p1 = points[i]
+    const p2 = points[i + 1]
+    const p3 = points[Math.min(pts - 1, i + 2)]
+    const cp1x = p1.x + (p2.x - p0.x) * tension
+    const cp1y = p1.y + (p2.y - p0.y) * tension
+    const cp2x = p2.x - (p3.x - p1.x) * tension
+    const cp2y = p2.y - (p3.y - p1.y) * tension
+    fullD += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`
   }
 
-  const fullD = buildPath(0, pts - 1)
   const last  = points[pts - 1]
   const areaD = isFlat ? null
     : `${fullD} L ${last.x.toFixed(2)},${H} L ${points[0].x.toFixed(2)},${H} Z`
 
-  // 포인트별 정상/이탈 판정 + 2-포인트 최소 규칙(단발 스파이크 억제)
+  // 포인트별 정상/이탈 판정 + 단발 스파이크 억제
   const COLOR_IN  = '#6AC8C7'
   const COLOR_OUT = '#f59e0b'
 
@@ -82,7 +81,6 @@ function SparklineSVG({ data, glBands }) {
     return v >= band.min && v <= band.max
   })
 
-  // 단일 포인트 이상치 억제 (양쪽 이웃이 같은 상태면 현재 포인트를 이웃 상태로 교정)
   const stable = [...isInRange]
   for (let i = 1; i < stable.length - 1; i++) {
     if (stable[i] !== stable[i - 1] && stable[i] !== stable[i + 1]) {
@@ -90,7 +88,7 @@ function SparklineSVG({ data, glBands }) {
     }
   }
 
-  // 연속 같은 색상 구간 묶기
+  // 연속 구간 묶기
   const segments = []
   let segStart = 0
   for (let i = 1; i <= stable.length; i++) {
@@ -110,11 +108,28 @@ function SparklineSVG({ data, glBands }) {
       overflow="hidden"
     >
       <defs>
-        <linearGradient id="spk-grad" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={`${uid}-grad`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"   stopColor="currentColor" stopOpacity="0.18" />
           <stop offset="100%" stopColor="currentColor" stopOpacity="0"    />
         </linearGradient>
+        {/* 세그먼트 클립 영역 — 인접 경계의 X 중간점으로 분할하여 틈 없이 연결 */}
+        {hasBands && segments.map((seg, si) => {
+          const prev  = segments[si - 1]
+          const next  = segments[si + 1]
+          const leftX = si === 0
+            ? 0
+            : (points[prev.end].x + points[seg.start].x) / 2
+          const rightX = si === segments.length - 1
+            ? W
+            : (points[seg.end].x + points[next.start].x) / 2
+          return (
+            <clipPath key={si} id={`${uid}-${si}`}>
+              <rect x={leftX} y={0} width={Math.max(0, rightX - leftX)} height={H} />
+            </clipPath>
+          )
+        })}
       </defs>
+
       {/* min/max 점선 기준선 */}
       {!isFlat && <>
         <line x1={PAD} y1={PAD}     x2={W - PAD} y2={PAD}
@@ -122,6 +137,7 @@ function SparklineSVG({ data, glBands }) {
         <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD}
               stroke="currentColor" strokeWidth="0.7" strokeDasharray="4 3" opacity="0.4" />
       </>}
+
       {/* 시간대별 가이드라인 밴드 */}
       {hasBands && !isFlat && glBands.map((band, bi) => {
         const bx1 = PAD + band.startPct * (W - PAD * 2)
@@ -142,26 +158,25 @@ function SparklineSVG({ data, glBands }) {
           />
         )
       })}
-      {areaD && <path d={areaD} fill="url(#spk-grad)" />}
-      {/* 색상 세그먼트 경로 (밴드 있을 때) / 단일 경로 (밴드 없을 때) */}
+
+      {areaD && <path d={areaD} fill={`url(#${uid}-grad)`} />}
+
+      {/* 색상 경로 — 동일한 fullD를 clipPath로 분할 (경계 C1 연속 보장) */}
       {hasBands
-        ? segments.map((seg, si) => {
-            const segD = buildPath(seg.start, seg.end)
-            if (!segD) return null
-            return (
-              <path
-                key={si}
-                d={segD}
-                fill="none"
-                stroke={seg.inRange ? COLOR_IN : COLOR_OUT}
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.9"
-                vectorEffect="non-scaling-stroke"
-              />
-            )
-          })
+        ? segments.map((seg, si) => (
+            <path
+              key={si}
+              d={fullD}
+              fill="none"
+              stroke={seg.inRange ? COLOR_IN : COLOR_OUT}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.9"
+              vectorEffect="non-scaling-stroke"
+              clipPath={`url(#${uid}-${si})`}
+            />
+          ))
         : <path d={fullD} fill="none" stroke="currentColor" strokeWidth="1.5"
                 strokeLinecap="round" strokeLinejoin="round" opacity="0.9"
                 vectorEffect="non-scaling-stroke" />
