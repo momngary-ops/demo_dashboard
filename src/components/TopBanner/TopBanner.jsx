@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ChevronUp, ChevronDown } from 'lucide-react'
 import { useWeatherPolling } from '../../hooks/useWeatherPolling'
 import { useKpiPolling, prefetchZoneData } from '../../hooks/useKpiPolling'
 import { DEFAULT_SLOT_CONFIGS } from '../../constants/kpiCandidates'
 import { loadFarmConfig } from '../../constants/farmSchema'
 
-const EXT_TEMP_CONFIG = [{ id: 'xouttemp', title: '외부 온도', unit: '°C', yMin: -10, yMax: 45 }]
+const EXT_TEMP_CONFIG = [{ id: 'xouttemp', title: '외부 온도', unit: '°C' }]
 import WeatherBackground    from './WeatherBackground'
 import ZoneTabs             from './ZoneTabs'
 import FixedMetricCard      from './FixedMetricCard'
@@ -54,9 +54,15 @@ export default function TopBanner({ compact = false, onToggleCompact, farmConfig
 
   const activeZoneId = farmConfig.zones[activeZone]?.id ?? null
 
+  // yMin/yMax는 가이드라인 설정에서만 관리 — localStorage 캐시된 하드코딩 값 제거
+  const sanitizedSlotConfigs = useMemo(
+    () => slotConfigs.map(s => ({ ...s, yMin: null, yMax: null })),
+    [slotConfigs]
+  )
+
   const weather      = useWeatherPolling()
-  const kpiSlots     = useKpiPolling(slotConfigs,      activeZoneId)
-  const extTempSlots = useKpiPolling(EXT_TEMP_CONFIG,  activeZoneId)
+  const kpiSlots     = useKpiPolling(sanitizedSlotConfigs, activeZoneId)
+  const extTempSlots = useKpiPolling(EXT_TEMP_CONFIG,      activeZoneId)
   const extTemp      = extTempSlots[0]
 
   // compact 바에 표시할 KPI 슬롯 (정상 데이터 있는 것만)

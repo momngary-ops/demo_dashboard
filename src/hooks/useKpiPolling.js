@@ -30,7 +30,7 @@ export function clearZoneCache(zoneId) {
 // ── 스파크라인 이력 ────────────────────────────────────────────────────────────
 // 폴링마다 수신한 값을 누적 → 3시간치 보관 → 20포인트 다운샘플링 후 스파크라인 전달
 const _kpiHistory  = {}            // { [kpiId]: Array<{ value: number, ts: number }> }
-const HISTORY_MS   = 12 * 60 * 60_000 // 12시간
+const HISTORY_MS   = 24 * 60 * 60_000 // 24시간
 const SPARK_POINTS = 80
 
 function _addHistory(id, value) {
@@ -92,7 +92,7 @@ async function _loadHistoryFromDB(slotConfigs, zoneId) {
     try {
       // 2단계: SQLite 이력 (5분 간격, 최대 12시간) — 병렬로 실행
       const res = await fetch(
-        `/api/logs?zone_id=${encodeURIComponent(zoneId)}&field=${encodeURIComponent(fieldId)}&limit=${SPARK_POINTS}`,
+        `/api/logs?zone_id=${encodeURIComponent(zoneId)}&field=${encodeURIComponent(fieldId)}&limit=288`,
         { signal: AbortSignal.timeout(5_000) }
       )
       if (!res.ok) return

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { GripHorizontal, X, Pencil, Plus } from 'lucide-react'
 import {
   ResponsiveContainer, LineChart, Line,
@@ -18,25 +18,25 @@ function fmt(v) {
 }
 
 // ─── SparklineSVG ────────────────────────────────────────────────────────────
-// 색상은 CSS의 currentColor / var(--accent) 사용 — 임의 색상 prop 없음
-function SparklineSVG({ data, bandMin, bandMax }) {
+// glBands: [{ startPct, endPct, min, max }] — 24h 시간대별 가이드라인 밴드
+// 정상 구간: #6AC8C7(teal), 이탈 구간: #f59e0b(orange), 밴드 없음: currentColor
+function SparklineSVG({ data, glBands }) {
   if (!data || data.length < 2) return null
 
   const W = 200, H = 60, PAD = 6
   const min = Math.min(...data)
   const max = Math.max(...data)
-  const range = max - min
-  const isFlat = range === 0
+  const isFlat = min === max
   const pts = data.length
 
-  // 가이드라인 밴드가 있을 때 Y 스케일을 데이터+밴드 전체로 확장
-  const yLo = (bandMin !== undefined && bandMax !== undefined && !isFlat)
-    ? Math.min(min, bandMin) : min
-  const yHi = (bandMin !== undefined && bandMax !== undefined && !isFlat)
-    ? Math.max(max, bandMax) : max
+  const hasBands = glBands && glBands.length > 0
+  const bandOverallMin = hasBands ? Math.min(...glBands.map(b => b.min)) : undefined
+  const bandOverallMax = hasBands ? Math.max(...glBands.map(b => b.max)) : undefined
+
+  const yLo = (hasBands && !isFlat) ? Math.min(min, bandOverallMin) : min
+  const yHi = (hasBands && !isFlat) ? Math.max(max, bandOverallMax) : max
   const yRange = yHi - yLo
 
-  // flat 데이터: 수직 중앙 / 범위 있는 데이터: 정규화
   const toY = (v) => isFlat
     ? H / 2
     : PAD + (1 - (v - yLo) / (yRange || 1)) * (H - PAD * 2)
@@ -46,24 +46,61 @@ function SparklineSVG({ data, bandMin, bandMax }) {
     y: toY(v),
   }))
 
-  // Catmull-Rom → Cubic Bezier (tension 0.3)
+  // Catmull-Rom → Cubic Bezier (tension 0.3) — 글로벌 인덱스로 접선 계산 → 세그먼트 경계 C1 연속
   const tension = 0.3
-  let d = `M ${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[Math.max(0, i - 1)]
-    const p1 = points[i]
-    const p2 = points[i + 1]
-    const p3 = points[Math.min(points.length - 1, i + 2)]
-    const cp1x = p1.x + (p2.x - p0.x) * tension
-    const cp1y = p1.y + (p2.y - p0.y) * tension
-    const cp2x = p2.x - (p3.x - p1.x) * tension
-    const cp2y = p2.y - (p3.y - p1.y) * tension
-    d += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`
+  const buildPath = (si, ei) => {
+    if (si >= ei) return ''
+    let d = `M ${points[si].x.toFixed(2)},${points[si].y.toFixed(2)}`
+    for (let i = si; i < ei; i++) {
+      const p0 = points[Math.max(0, i - 1)]
+      const p1 = points[i]
+      const p2 = points[i + 1]
+      const p3 = points[Math.min(pts - 1, i + 2)]
+      const cp1x = p1.x + (p2.x - p0.x) * tension
+      const cp1y = p1.y + (p2.y - p0.y) * tension
+      const cp2x = p2.x - (p3.x - p1.x) * tension
+      const cp2y = p2.y - (p3.y - p1.y) * tension
+      d += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`
+    }
+    return d
   }
 
-  const last = points[points.length - 1]
+  const fullD = buildPath(0, pts - 1)
+  const last  = points[pts - 1]
   const areaD = isFlat ? null
-    : `${d} L ${last.x.toFixed(2)},${H} L ${points[0].x.toFixed(2)},${H} Z`
+    : `${fullD} L ${last.x.toFixed(2)},${H} L ${points[0].x.toFixed(2)},${H} Z`
+
+  // 포인트별 정상/이탈 판정 + 2-포인트 최소 규칙(단발 스파이크 억제)
+  const COLOR_IN  = '#6AC8C7'
+  const COLOR_OUT = '#f59e0b'
+
+  const isInRange = data.map((v, i) => {
+    if (!hasBands) return true
+    const pct  = i / (pts - 1)
+    const band = glBands.find(b => pct >= b.startPct && pct <= b.endPct)
+    if (!band) return true
+    return v >= band.min && v <= band.max
+  })
+
+  // 단일 포인트 이상치 억제 (양쪽 이웃이 같은 상태면 현재 포인트를 이웃 상태로 교정)
+  const stable = [...isInRange]
+  for (let i = 1; i < stable.length - 1; i++) {
+    if (stable[i] !== stable[i - 1] && stable[i] !== stable[i + 1]) {
+      stable[i] = stable[i - 1]
+    }
+  }
+
+  // 연속 같은 색상 구간 묶기
+  const segments = []
+  let segStart = 0
+  for (let i = 1; i <= stable.length; i++) {
+    if (i === stable.length || stable[i] !== stable[segStart]) {
+      segments.push({ start: segStart, end: i - 1, inRange: stable[segStart] })
+      segStart = i
+    }
+  }
+
+  const lastColor = hasBands ? (stable[pts - 1] ? COLOR_IN : COLOR_OUT) : 'currentColor'
 
   return (
     <svg
@@ -78,34 +115,58 @@ function SparklineSVG({ data, bandMin, bandMax }) {
           <stop offset="100%" stopColor="currentColor" stopOpacity="0"    />
         </linearGradient>
       </defs>
-      {/* 범위 있을 때만 min/max 점선 기준선 */}
+      {/* min/max 점선 기준선 */}
       {!isFlat && <>
         <line x1={PAD} y1={PAD}     x2={W - PAD} y2={PAD}
               stroke="currentColor" strokeWidth="0.7" strokeDasharray="4 3" opacity="0.4" />
         <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD}
               stroke="currentColor" strokeWidth="0.7" strokeDasharray="4 3" opacity="0.4" />
       </>}
-      {/* 가이드라인 밴드 */}
-      {bandMin !== undefined && bandMax !== undefined && !isFlat && (() => {
-        const by1 = toY(bandMax)
-        const by2 = toY(bandMin)
+      {/* 시간대별 가이드라인 밴드 */}
+      {hasBands && !isFlat && glBands.map((band, bi) => {
+        const bx1 = PAD + band.startPct * (W - PAD * 2)
+        const bx2 = PAD + band.endPct   * (W - PAD * 2)
+        const by1 = toY(band.max)
+        const by2 = toY(band.min)
         const bh  = Math.abs(by2 - by1)
-        return bh > 0 ? (
+        if (bh <= 0) return null
+        return (
           <rect
-            x={PAD} y={Math.min(by1, by2)}
-            width={W - PAD * 2} height={bh}
-            fill="rgba(106,200,199,0.13)"
+            key={bi}
+            x={bx1} y={Math.min(by1, by2)}
+            width={Math.max(0, bx2 - bx1)} height={bh}
+            fill="rgba(106,200,199,0.15)"
             stroke="rgba(106,200,199,0.5)"
-            strokeWidth="0.8"
-            strokeDasharray="4 3"
+            strokeWidth="0.5"
+            strokeDasharray="3 3"
           />
-        ) : null
-      })()}
+        )
+      })}
       {areaD && <path d={areaD} fill="url(#spk-grad)" />}
-      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5"
-            strokeLinecap="round" strokeLinejoin="round" opacity="0.9"
-            vectorEffect="non-scaling-stroke" />
-      <circle cx={last.x} cy={last.y} r="3" fill="currentColor" opacity="0.95" />
+      {/* 색상 세그먼트 경로 (밴드 있을 때) / 단일 경로 (밴드 없을 때) */}
+      {hasBands
+        ? segments.map((seg, si) => {
+            const segD = buildPath(seg.start, seg.end)
+            if (!segD) return null
+            return (
+              <path
+                key={si}
+                d={segD}
+                fill="none"
+                stroke={seg.inRange ? COLOR_IN : COLOR_OUT}
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity="0.9"
+                vectorEffect="non-scaling-stroke"
+              />
+            )
+          })
+        : <path d={fullD} fill="none" stroke="currentColor" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round" opacity="0.9"
+                vectorEffect="non-scaling-stroke" />
+      }
+      <circle cx={last.x} cy={last.y} r="3" fill={lastColor} opacity="0.95" />
     </svg>
   )
 }
@@ -206,20 +267,41 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
   const data   = kpiSlot?.data ?? []
   const unit   = kpiSlot?.unit ?? config.unit ?? candidate?.unit ?? ''
 
-  // 가이드라인 밴드
-  const { getCurrent } = useGuideline() ?? {}
-  const gl = getCurrent?.()
-  let bandMin, bandMax
-  if (gl) {
-    const kid = config.kpiId ?? candidate?.id
-    if (kid === 'xintemp1') { bandMin = gl.temp_min; bandMax = gl.temp_max }
-    if (kid === 'xinhum1')  { bandMin = gl.hum_min;  bandMax = gl.hum_max  }
-    if (kid === 'xco2') {
-      const dev = 0.1
-      bandMin = gl.co2 * (1 - dev)
-      bandMax = gl.co2 * (1 + dev)
+  // 24h 시간대별 가이드라인 밴드 (xintemp1 / xinhum1 / xco2 만 적용)
+  const { guidelines } = useGuideline() ?? {}
+  const kid = config.kpiId ?? candidate?.id
+  const glBands = useMemo(() => {
+    if (!guidelines || !kid) return []
+    if (kid !== 'xintemp1' && kid !== 'xinhum1' && kid !== 'xco2') return []
+    const now = Date.now()
+    const windowMs    = 24 * 60 * 60_000
+    const windowStart = now - windowMs
+    const bands = []
+    for (let h = 0; h < 24; h++) {
+      const segStart = windowStart + h * 3_600_000
+      const segEnd   = Math.min(segStart + 3_600_000, now)
+      const midTs    = (segStart + segEnd) / 2
+      const hour     = new Date(midTs).getHours()
+      const monthKey = String(new Date(midTs).getMonth() + 1)
+      const rows     = guidelines[monthKey]
+      if (!rows) continue
+      const row = rows.find(r => r.hour === hour)
+      if (!row) continue
+      let glMin, glMax
+      if (kid === 'xintemp1') { glMin = row.temp_min; glMax = row.temp_max }
+      if (kid === 'xinhum1')  { glMin = row.hum_min;  glMax = row.hum_max  }
+      if (kid === 'xco2')     { glMin = row.co2 * 0.9; glMax = row.co2 * 1.1 }
+      if (glMin != null && glMax != null) {
+        bands.push({
+          startPct: (segStart - windowStart) / windowMs,
+          endPct:   (segEnd   - windowStart) / windowMs,
+          min: glMin,
+          max: glMax,
+        })
+      }
     }
-  }
+    return bands
+  }, [guidelines, kid])
 
   const isLoading = status === 'LOADING'
   const isError   = ERROR_STATUSES.has(status)
@@ -376,7 +458,7 @@ function ChartMainWidget({ config, kpiSlot, candidate, gridSize, extraSlots }) {
         const hasRange = dMax !== dMin
         return (
           <div className="cm-spark-area" style={{ color: sparkColor }}>
-            <SparklineSVG data={data} bandMin={bandMin} bandMax={bandMax} />
+            <SparklineSVG data={data} glBands={glBands} />
             {hasRange && <>
               <span className="cm-spark-label cm-spark-label--max">
                 {fmt(dMax)}{unit && ` ${unit}`}
@@ -936,12 +1018,18 @@ export default function Widget({
   if (!config) return null
 
   // 임계값 상태 → 배경 레벨
-  const statusLevel = kpiSlot?.dataStatus === 'STALE_CRIT'  ? 'crit'
-    : kpiSlot?.dataStatus === 'STALE_WARN'                  ? 'warn'
-    : kpiSlot?.dataStatus === 'OUT_OF_RANGE'                ? 'oor'
-    : kpiSlot?.dataStatus === 'SENSOR_LOST'                 ? 'lost'
-    : kpiSlot?.dataStatus === 'SENSOR_FAULT'                ? 'crit'
-    : null
+  // chart-main: 가이드라인 이탈(OUT_OF_RANGE)까지 포함
+  // computed 등 나머지: 하드웨어·연결 오류만 반영 (입력 KPI의 이탈 상태는 전파하지 않음)
+  const ds = kpiSlot?.dataStatus
+  const statusLevel = config.type === 'chart-main'
+    ? (ds === 'STALE_CRIT' || ds === 'SENSOR_FAULT' ? 'crit'
+      : ds === 'STALE_WARN'    ? 'warn'
+      : ds === 'OUT_OF_RANGE'  ? 'oor'
+      : ds === 'SENSOR_LOST'   ? 'lost'
+      : null)
+    : (ds === 'STALE_CRIT' || ds === 'SENSOR_FAULT' ? 'crit'
+      : ds === 'SENSOR_LOST'   ? 'lost'
+      : null)
 
   // 타이틀 인라인 편집
   const [isEditingTitle, setIsEditingTitle] = useState(false)

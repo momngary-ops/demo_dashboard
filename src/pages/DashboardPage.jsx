@@ -307,7 +307,6 @@ export default function DashboardPage() {
     [widgets, allCandidates]
   )
   const widgetKpiSlots = useKpiPolling(widgetSlotConfigs, activeZoneId, refreshKey)
-  const kpiSlotMap = Object.fromEntries(widgetKpiSlots.map(s => [s.id, s]))
 
   // 서브로우 secondary KPI 폴링 + chart overlay ID 포함
   const secondarySlotConfigs = useMemo(() => {
@@ -376,7 +375,11 @@ export default function DashboardPage() {
     const applyOverride = s => {
       const base = zoneLabel ? { ...s, zoneLabel } : { ...s }
       const map  = GL_KPI_MAP[base.id]
-      if (!map) return base
+      // 가이드라인 미설정 KPI는 OUT_OF_RANGE 이탈 판정 제외 (hardcoded yMin/yMax 오판 방지)
+      if (!map) {
+        const alertStatus = base.dataStatus === 'OUT_OF_RANGE' ? 'OK' : base.dataStatus
+        return { ...base, dataStatus: alertStatus }
+      }
 
       // 구역별 설정 > 공통(가이드라인) 설정 순으로 우선 적용
       const zoneAc       = farmConfig.zones[activeZone]?.alertConfig
@@ -426,6 +429,15 @@ export default function DashboardPage() {
   }, [widgetKpiSlots, secondaryKpiSlots, zoneLabel, guidelines, glAlertConfig]) // eslint-disable-line
   useAlertNotifier(alertSlots)
 
+  // 가이드라인 기반 dataStatus/yMin/yMax를 위젯 신호등·테두리 색상에 반영
+  const kpiSlotMap = useMemo(() => {
+    const map = Object.fromEntries(widgetKpiSlots.map(s => [s.id, s]))
+    for (const s of alertSlots) {
+      if (map[s.id]) map[s.id] = { ...map[s.id], dataStatus: s.dataStatus, yMin: s.yMin, yMax: s.yMax }
+    }
+    return map
+  }, [widgetKpiSlots, alertSlots])
+
   // 이탈 패널
   const [deviationExpandKey, setDeviationExpandKey] = useState(0)
   const [dismissedDeviationIds, setDismissedDeviationIds] = useState(() => new Set())
@@ -446,11 +458,15 @@ export default function DashboardPage() {
     })
   }, [deviatedSlots])
 
-  // 사용자가 닫은 카드 제외 후 패널에 전달
-  const visibleDeviatedSlots = useMemo(
-    () => deviatedSlots.filter(s => !dismissedDeviationIds.has(s.id)),
-    [deviatedSlots, dismissedDeviationIds]
-  )
+  // 사용자가 닫은 카드 제외 후 패널에 전달 (동일 kpiId 중복 카드 방지)
+  const visibleDeviatedSlots = useMemo(() => {
+    const seen = new Set()
+    return deviatedSlots.filter(s => {
+      if (dismissedDeviationIds.has(s.id) || seen.has(s.id)) return false
+      seen.add(s.id)
+      return true
+    })
+  }, [deviatedSlots, dismissedDeviationIds])
 
   // 신규 이탈 발생 시 패널 자동 펼치기 신호
   useEffect(() => {
