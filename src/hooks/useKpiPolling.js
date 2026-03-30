@@ -268,11 +268,14 @@ export function useKpiPolling(slotConfigs, zoneId = null, refreshKey = 0) {
           )
         ))
 
-    // 이력 로드 + 현재값 조회 병렬 실행 → 첫 화면 대기시간 단축
-    _loadHistoryFromDB(slotConfigs, effectiveZoneId)
+    // 1) 현재값 즉시 표시 → 2) 이력 로드 완료 후 sparkline 반영
+    let cancelled = false
     load()
+    _loadHistoryFromDB(slotConfigs, effectiveZoneId).then(() => {
+      if (!cancelled) load()  // 캐시된 현재값 재사용, API 추가 호출 없음
+    })
     const timer = setInterval(load, POLLING.KPI_INTERVAL_MS)
-    return () => clearInterval(timer)
+    return () => { cancelled = true; clearInterval(timer) }
   }, [configKey, effectiveZoneId, zoneAvailable]) // eslint-disable-line
 
   return slots

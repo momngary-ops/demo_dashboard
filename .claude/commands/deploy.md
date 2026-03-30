@@ -16,7 +16,7 @@ ssh root@223.130.138.59 "python3 -c \"import os; p='/var/www/dashboard/data_log.
 
 Step 2. 코드 업데이트 + 프론트엔드 빌드
 ```
-ssh root@223.130.138.59 "cd /var/www/dashboard && git pull && npm run build"
+ssh root@223.130.138.59 'export PATH=/root/.nvm/versions/node/v24.14.0/bin:$PATH && cd /var/www/dashboard && git pull && npm run build'
 ```
 
 Step 3. 서비스 재시작
