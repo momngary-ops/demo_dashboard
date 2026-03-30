@@ -96,6 +96,18 @@ DB_PATH              = Path(__file__).parent / "data_log.db"
 LOG_INTERVAL_SECONDS = 300   # 5분
 ALERT_INTERVAL_SEC   = 60    # 1분
 
+# ── DB 보호 경고 ────────────────────────────────────────────────────────────
+_DB_WARN_THRESHOLD_MB = 1.0   # 1MB 미만이면 경고
+if DB_PATH.exists():
+    _db_size_mb = DB_PATH.stat().st_size / 1024 / 1024
+    if _db_size_mb < _DB_WARN_THRESHOLD_MB:
+        print(f"[경고] data_log.db 크기가 {_db_size_mb:.2f} MB로 비정상적으로 작습니다.")
+        print("[경고] 배포 중 data_log.db가 덮어쓰여졌을 가능성이 있습니다. 서버의 백업을 확인하세요.")
+    else:
+        print(f"[DB] data_log.db {_db_size_mb:.1f} MB — 정상")
+else:
+    print("[DB] data_log.db 없음 — 새로 생성됩니다.")
+
 
 def _load_zone_config() -> dict:
     if ZONE_CONFIG_PATH.exists():
